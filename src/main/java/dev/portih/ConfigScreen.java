@@ -4,6 +4,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractSliderButton;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
 
 import java.util.Locale;
@@ -16,9 +17,11 @@ import java.util.function.IntSupplier;
 public class ConfigScreen extends Screen {
     private static final String[] TABS = {"HUD", "Меч", "Звук", "Вид"};
     private static final String[] AXES = {"Вертикальная (Y)", "Вперёд (Z)", "Боковая (X)"};
+    private static final String[] SPIN_MODES = {"При ударе", "Постоянно"};
 
     private final Screen parent;
-    private int tab = 0;
+    private final long openedAt = System.currentTimeMillis();
+    private int tab;
 
     private int px, py, pw, ph;
     private final int sidebarW = 112;
@@ -29,6 +32,7 @@ public class ConfigScreen extends Screen {
     public ConfigScreen(Screen parent) {
         super(Component.literal("PortihMod"));
         this.parent = parent;
+        this.tab = Math.floorMod(Config.get().lastTab, TABS.length);
     }
 
     @Override
@@ -49,6 +53,8 @@ public class ConfigScreen extends Screen {
             String label = (tab == i ? "> " : "") + TABS[i];
             addRenderableWidget(Button.builder(Component.literal(label), b -> {
                 tab = idx;
+                Config.get().lastTab = idx;
+                Config.save();
                 rebuildWidgets();
             }).bounds(px + 8, py + 44 + i * 26, sidebarW - 16, 22).build());
         }
@@ -75,10 +81,15 @@ public class ConfigScreen extends Screen {
             case 1 -> {
                 toggle("Маленький меч", () -> c.smallSword, v -> c.smallSword = v);
                 slider("Размер", 0.10, 1.50, c.swordScale, v -> c.swordScale = (float) v, "%.2f");
+                slider("Высота", -0.60, 0.60, c.swordY, v -> c.swordY = (float) v, "%.2f");
+                toggle("Все предметы", () -> c.allItems, v -> c.allItems = v);
                 toggle("Кручение", () -> c.spin, v -> c.spin = v);
+                cycle("Режим", SPIN_MODES, () -> c.spinMode, v -> c.spinMode = v);
+                toggle("Только по цели", () -> c.spinOnlyOnTarget, v -> c.spinOnlyOnTarget = v);
+                slider("Длит. удара (с)", 0.10, 1.50, c.spinDuration, v -> c.spinDuration = (float) v, "%.2f");
+                slider("Оборотов за удар", 1, 5, c.spinTurns, v -> c.spinTurns = (int) Math.round(v), "%.0f");
                 slider("Скорость (об/с)", 0.1, 5.0, c.spinSpeed, v -> c.spinSpeed = (float) v, "%.1f");
                 cycle("Ось", AXES, () -> c.spinAxis, v -> c.spinAxis = v);
-                toggle("Все предметы", () -> c.allItems, v -> c.allItems = v);
             }
             case 2 -> {
                 toggle("Звук победы", () -> c.victorySound, v -> c.victorySound = v);
@@ -94,6 +105,7 @@ public class ConfigScreen extends Screen {
                 slider("Прозрачность", 0.2, 1.0, c.panelOpacity, v -> c.panelOpacity = (float) v, "%.2f");
                 button("Сбросить всё", () -> {
                     Config.reset();
+                    this.tab = 0;
                     rebuildWidgets();
                 });
                 infoY = contentY + ((slot + 1) / 2) * 26 + 8;
@@ -150,6 +162,20 @@ public class ConfigScreen extends Screen {
         slot++;
     }
 
+    // ------------------------------------------------------------ ввод
+
+    @Override
+    public boolean keyPressed(KeyEvent event) {
+        // Та же клавиша, что открывает меню (по умолчанию Right Shift), его закрывает.
+        if (PortihClient.openMenu != null
+                && PortihClient.openMenu.matches(event)
+                && System.currentTimeMillis() - openedAt > 250L) {
+            onClose();
+            return true;
+        }
+        return super.keyPressed(event);
+    }
+
     // ------------------------------------------------------------ рисование
 
     @Override
@@ -175,13 +201,14 @@ public class ConfigScreen extends Screen {
         } else if (tab == 3) {
             g.drawString(this.font, "Бинды: Настройки -> Управление -> Бинды клавиш -> PortihMod",
                     contentX, infoY, Theme.subText(), false);
-            g.drawString(this.font, "Открыть меню по умолчанию: Right Shift (меняется там же).",
+            g.drawString(this.font, "Right Shift открывает и закрывает меню (меняется там же).",
                     contentX, infoY + 12, Theme.subText(), false);
         }
     }
 
     @Override
     public void removed() {
+        Config.get().lastTab = tab;
         Config.save();
     }
 
