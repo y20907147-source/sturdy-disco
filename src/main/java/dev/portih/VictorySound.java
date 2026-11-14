@@ -61,6 +61,10 @@ public final class VictorySound {
     public static void play() {
         Minecraft mc = Minecraft.getInstance();
         Config c = Config.get();
+        if (CustomSounds.has(c.victoryCustom)) {
+            CustomSounds.play(c.victoryCustom, c.volume, c.pitch);
+            return;
+        }
         int i = Math.floorMod(c.soundIndex, IDS.length);
         SoundEvent ev = SoundEvent.createVariableRangeEvent(Identifier.withDefaultNamespace(IDS[i]));
         mc.getSoundManager().play(SimpleSoundInstance.forUI(ev, c.pitch, c.volume));
