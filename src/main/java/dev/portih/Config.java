@@ -36,15 +36,27 @@ public class Config {
     // ---- меч ----
     public boolean smallSword = true;
     public float swordScale = 0.60f;
-    public float swordY = 0.0f;          // высота меча (смещение вверх/вниз)
+    public float swordY = 0.0f;
     public boolean spin = true;
-    public int spinMode = 0;             // 0 = при ударе, 1 = постоянно
-    public boolean spinOnlyOnTarget = true;
-    public float spinDuration = 0.45f;   // секунды (режим "при ударе")
-    public int spinTurns = 1;            // оборотов за удар
-    public float spinSpeed = 1.0f;       // об/с (режим "постоянно")
+    public int spinMode = 0;             // 0 = по удару, 1 = постоянно
+    public int spinTrigger = 0;          // 0 = при попадании, 1 = при клике
+    public float spinDuration = 0.45f;
+    public int spinTurns = 1;
+    public float spinSpeed = 1.0f;
     public int spinAxis = 0;
     public boolean allItems = false;
+
+    // ---- эффекты ----
+    public boolean hitParticles = true;
+    public int particleType = 0;
+    public int particleCount = 8;
+    public boolean hitMarker = true;
+    public boolean hitFlash = false;
+    public float flashStrength = 0.5f;
+    public boolean hitSound = false;
+    public int hitSoundIndex = 0;
+    public float hitVolume = 1.0f;
+    public boolean victoryParticles = true;
 
     // ---- звук победы ----
     public boolean victorySound = true;
