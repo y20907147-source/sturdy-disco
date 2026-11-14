@@ -9,7 +9,11 @@ import java.nio.file.Path;
 
 public class Config {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+    private static final int CURRENT_VERSION = 2;
     private static Config instance = new Config();
+
+    /** Версия формата конфига (для миграции старых настроек). */
+    public int version = 0;
 
     // ---- меню ----
     public int lastTab = 0;
@@ -19,6 +23,7 @@ public class Config {
     public int accent = 0;
     public float panelOpacity = 0.80f;
     public boolean hudEnabled = true;
+    public boolean winLose = true;       // индикатор W/L в таргет худе
 
     // ---- таргет худ ----
     public boolean targetHud = true;
@@ -42,10 +47,10 @@ public class Config {
     public boolean spin = true;
     public int spinMode = 0;             // 0 = по удару, 1 = постоянно
     public int spinTrigger = 0;          // 0 = при попадании, 1 = при клике
-    public float spinDuration = 0.45f;
+    public float spinDuration = 0.60f;
     public int spinTurns = 1;
     public float spinSpeed = 1.0f;
-    public int spinAxis = 0;
+    public int spinAxis = 1;             // 0 = Y (волчок), 1 = Z (колесо), 2 = X (кувырок)
     public boolean allItems = false;
 
     // ---- эффекты ----
@@ -56,12 +61,14 @@ public class Config {
     public float flashStrength = 0.5f;
     public boolean hitSound = false;
     public int hitSoundIndex = 0;
+    public String hitCustom = "";        // имя .wav из config/portihmod/sounds, пусто = встроенный
     public float hitVolume = 1.0f;
     public boolean victoryParticles = true;
 
     // ---- звук победы ----
     public boolean victorySound = true;
     public int soundIndex = 0;
+    public String victoryCustom = "";    // имя .wav из config/portihmod/sounds, пусто = встроенный
     public float volume = 1.0f;
     public float pitch = 1.0f;
 
@@ -74,16 +81,37 @@ public class Config {
     }
 
     public static void load() {
+        boolean existed = false;
         try {
             Path f = file();
-            if (Files.exists(f)) {
+            existed = Files.exists(f);
+            if (existed) {
                 Config c = GSON.fromJson(Files.readString(f), Config.class);
                 if (c != null) instance = c;
             }
         } catch (Exception e) {
             System.err.println("[PortihMod] Не удалось прочитать конфиг: " + e);
         }
+
+        if (!existed) {
+            instance.version = CURRENT_VERSION;
+        } else if (instance.version < CURRENT_VERSION) {
+            migrate(instance);
+        }
+        if (instance.victoryCustom == null) instance.victoryCustom = "";
+        if (instance.hitCustom == null) instance.hitCustom = "";
         save();
+    }
+
+    /** Старые настройки кручения давали "круг не на месте": ставим исправленные значения. */
+    private static void migrate(Config c) {
+        if (c.version < 2) {
+            c.spinAxis = 1;
+            c.spinDuration = 0.60f;
+            c.noSwing = true;
+            c.noDip = true;
+        }
+        c.version = CURRENT_VERSION;
     }
 
     public static void save() {
@@ -96,6 +124,7 @@ public class Config {
 
     public static void reset() {
         instance = new Config();
+        instance.version = CURRENT_VERSION;
         save();
     }
 }
