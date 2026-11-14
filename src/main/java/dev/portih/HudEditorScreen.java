@@ -29,7 +29,9 @@ public class HudEditorScreen extends Screen {
     public void render(GuiGraphics g, int mouseX, int mouseY, float partialTick) {
         g.fill(0, 0, this.width, this.height, 0x50000000);
         String hint = "Перетаскивай панели мышью";
-        g.drawString(this.font, hint, this.width / 2 - this.font.width(hint) / 2, 10, 0xFFFFFFFF, false);
+        int hw = this.font.width(hint) + 16;
+        Draw.roundRect(g, this.width / 2 - hw / 2, 6, hw, 18, 4, Theme.withAlpha(0x000000, 0.6f));
+        g.drawString(this.font, hint, this.width / 2 - this.font.width(hint) / 2, 11, 0xFFFFFFFF, false);
         super.render(g, mouseX, mouseY, partialTick);
     }
 
