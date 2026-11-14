@@ -15,9 +15,10 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
 public class ConfigScreen extends Screen {
-    private static final String[] TABS = {"HUD", "Меч", "Звук", "Вид"};
+    private static final String[] TABS = {"HUD", "Меч", "Эффекты", "Звук", "Вид"};
     private static final String[] AXES = {"Вертикальная (Y)", "Вперёд (Z)", "Боковая (X)"};
-    private static final String[] SPIN_MODES = {"При ударе", "Постоянно"};
+    private static final String[] SPIN_MODES = {"По удару", "Постоянно"};
+    private static final String[] TRIGGERS = {"При попадании", "При клике"};
 
     private final Screen parent;
     private final long openedAt = System.currentTimeMillis();
@@ -56,7 +57,7 @@ public class ConfigScreen extends Screen {
                 Config.get().lastTab = idx;
                 Config.save();
                 rebuildWidgets();
-            }).bounds(px + 8, py + 44 + i * 26, sidebarW - 16, 22).build());
+            }).bounds(px + 8, py + 40 + i * 24, sidebarW - 16, 20).build());
         }
         addRenderableWidget(Button.builder(Component.literal("Закрыть"), b -> onClose())
                 .bounds(px + 8, py + ph - 30, sidebarW - 16, 22).build());
@@ -77,6 +78,7 @@ public class ConfigScreen extends Screen {
                 toggle("Прыжок", () -> c.showSpace, v -> c.showSpace = v);
                 slider("Кейстроки X", 0, 100, c.keysX * 100, v -> c.keysX = (float) (v / 100), "%.0f%%");
                 slider("Кейстроки Y", 0, 100, c.keysY * 100, v -> c.keysY = (float) (v / 100), "%.0f%%");
+                infoY = contentY + ((slot + 1) / 2) * 26 + 8;
             }
             case 1 -> {
                 toggle("Маленький меч", () -> c.smallSword, v -> c.smallSword = v);
@@ -85,13 +87,27 @@ public class ConfigScreen extends Screen {
                 toggle("Все предметы", () -> c.allItems, v -> c.allItems = v);
                 toggle("Кручение", () -> c.spin, v -> c.spin = v);
                 cycle("Режим", SPIN_MODES, () -> c.spinMode, v -> c.spinMode = v);
-                toggle("Только по цели", () -> c.spinOnlyOnTarget, v -> c.spinOnlyOnTarget = v);
+                cycle("Триггер", TRIGGERS, () -> c.spinTrigger, v -> c.spinTrigger = v);
                 slider("Длит. удара (с)", 0.10, 1.50, c.spinDuration, v -> c.spinDuration = (float) v, "%.2f");
                 slider("Оборотов за удар", 1, 5, c.spinTurns, v -> c.spinTurns = (int) Math.round(v), "%.0f");
                 slider("Скорость (об/с)", 0.1, 5.0, c.spinSpeed, v -> c.spinSpeed = (float) v, "%.1f");
                 cycle("Ось", AXES, () -> c.spinAxis, v -> c.spinAxis = v);
+                infoY = contentY + ((slot + 1) / 2) * 26 + 8;
             }
             case 2 -> {
+                toggle("Частицы при ударе", () -> c.hitParticles, v -> c.hitParticles = v);
+                cycle("Тип частиц", Effects.PARTICLE_NAMES, () -> c.particleType, v -> c.particleType = v);
+                slider("Кол-во частиц", 1, 30, c.particleCount, v -> c.particleCount = (int) Math.round(v), "%.0f");
+                toggle("Хитмаркер", () -> c.hitMarker, v -> c.hitMarker = v);
+                toggle("Вспышка экрана", () -> c.hitFlash, v -> c.hitFlash = v);
+                slider("Сила вспышки", 0.1, 1.0, c.flashStrength, v -> c.flashStrength = (float) v, "%.2f");
+                toggle("Звук удара", () -> c.hitSound, v -> c.hitSound = v);
+                cycle("Тип звука", Effects.HIT_SOUND_NAMES, () -> c.hitSoundIndex, v -> c.hitSoundIndex = v);
+                slider("Громкость удара", 0.0, 2.0, c.hitVolume, v -> c.hitVolume = (float) v, "%.2f");
+                toggle("Частицы победы", () -> c.victoryParticles, v -> c.victoryParticles = v);
+                infoY = contentY + ((slot + 1) / 2) * 26 + 8;
+            }
+            case 3 -> {
                 toggle("Звук победы", () -> c.victorySound, v -> c.victorySound = v);
                 cycle("Звук", VictorySound.NAMES, () -> c.soundIndex, v -> c.soundIndex = v);
                 slider("Громкость", 0.0, 2.0, c.volume, v -> c.volume = (float) v, "%.2f");
@@ -195,14 +211,26 @@ public class ConfigScreen extends Screen {
 
         super.render(g, mouseX, mouseY, partialTick);
 
-        if (tab == 2) {
-            g.drawString(this.font, "Звук играет, когда умирает цель, которую ты бил.",
+        switch (tab) {
+            case 0 -> g.drawString(this.font,
+                    "Двигать HUD: открой чат (T) и перетаскивай панели мышью.",
                     contentX, infoY, Theme.subText(), false);
-        } else if (tab == 3) {
-            g.drawString(this.font, "Бинды: Настройки -> Управление -> Бинды клавиш -> PortihMod",
+            case 1 -> {
+                String s = SwordSpin.handRenders > 0
+                        ? "Рука: патч работает (" + SwordSpin.handRenders + ")"
+                        : "Рука: патч НЕ сработал (возьми меч в руку)";
+                g.drawString(this.font, s, contentX, infoY, Theme.subText(), false);
+            }
+            case 3 -> g.drawString(this.font,
+                    "Звук играет, когда умирает цель, по которой ты попал.",
                     contentX, infoY, Theme.subText(), false);
-            g.drawString(this.font, "Right Shift открывает и закрывает меню (меняется там же).",
-                    contentX, infoY + 12, Theme.subText(), false);
+            case 4 -> {
+                g.drawString(this.font, "Бинды: Настройки -> Управление -> Бинды клавиш -> PortihMod",
+                        contentX, infoY, Theme.subText(), false);
+                g.drawString(this.font, "Right Shift открывает и закрывает меню (меняется там же).",
+                        contentX, infoY + 12, Theme.subText(), false);
+            }
+            default -> { }
         }
     }
 
