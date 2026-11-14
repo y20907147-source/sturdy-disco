@@ -45,6 +45,7 @@ public class PortihClient implements ClientModInitializer {
                 Config.save();
             }
             VictorySound.tick(client);
+            SwordSpin.tick(client);
         });
     }
 }
