@@ -4,6 +4,7 @@ import com.llamalad7.mixinextras.sugar.Local;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import dev.portih.Config;
+import dev.portih.SwordSpin;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -31,23 +32,30 @@ public class ItemInHandRendererMixin {
         if (context != ItemDisplayContext.FIRST_PERSON_RIGHT_HAND
                 && context != ItemDisplayContext.FIRST_PERSON_LEFT_HAND) return;
         if (!c.allItems && !stack.is(ItemTags.SWORDS)) return;
-        if (!c.smallSword && !c.spin) return;
 
         pose.pushPose();
         portih$pushed = true;
 
+        // 1. высота (до масштаба, чтобы смещение не уменьшалось)
+        if (c.swordY != 0f) {
+            pose.translate(0f, c.swordY, 0f);
+        }
+        // 2. размер
         if (c.smallSword) {
             float s = c.swordScale;
             pose.scale(s, s, s);
         }
+        // 3. кручение
         if (c.spin) {
-            float angle = ((System.currentTimeMillis() % 3_600_000L) / 1000f) * c.spinSpeed * 360f % 360f;
-            Axis axis = switch (c.spinAxis) {
-                case 1 -> Axis.ZP;
-                case 2 -> Axis.XP;
-                default -> Axis.YP;
-            };
-            pose.mulPose(axis.rotationDegrees(angle));
+            float angle = SwordSpin.angle();
+            if (angle != 0f) {
+                Axis axis = switch (c.spinAxis) {
+                    case 1 -> Axis.ZP;
+                    case 2 -> Axis.XP;
+                    default -> Axis.YP;
+                };
+                pose.mulPose(axis.rotationDegrees(angle));
+            }
         }
     }
 
