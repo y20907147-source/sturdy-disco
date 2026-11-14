@@ -11,14 +11,27 @@ import net.minecraft.world.phys.EntityHitResult;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayDeque;
+import java.util.HashMap;
 import java.util.Locale;
 
 public final class Hud {
-    private static final int K = 20;
-    private static final int GAP = 2;
-    private static final int SPACE_H = 8;
-    private static final int TARGET_W = 120;
-    private static final int TARGET_H = 28;
+    private static final int K = 22;
+    private static final int GAP = 3;
+    private static final int MOUSE_H = 18;
+    private static final int SPACE_H = 12;
+    private static final int CPS_H = 14;
+    private static final int TARGET_W = 140;
+    private static final int TARGET_H = 34;
+    private static final int RADIUS = 4;
+
+    private static final HashMap<String, Float> ANIM = new HashMap<>();
+    private static long lastNs;
+    private static float dt = 0.016f;
+
+    // плавная полоска здоровья цели
+    private static LivingEntity animFor;
+    private static float barRatio = 1f;
+    private static float ghostRatio = 1f;
 
     private static final ArrayDeque<Long> LEFT = new ArrayDeque<>();
     private static final ArrayDeque<Long> RIGHT = new ArrayDeque<>();
@@ -39,6 +52,10 @@ public final class Hud {
     public static void render(GuiGraphics g, DeltaTracker delta) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
+
+        long ns = System.nanoTime();
+        dt = lastNs == 0L ? 0.016f : Math.min(0.1f, (ns - lastNs) / 1_000_000_000f);
+        lastNs = ns;
 
         HitTracker.update(mc);
         if (mc.options.hideGui) return;
@@ -93,8 +110,9 @@ public final class Hud {
         int sh = mc.getWindow().getGuiScaledHeight();
         int w = 3 * K + 2 * GAP;
         int h = 2 * K + GAP;
-        if (c.showMouse) h += GAP + K;
+        if (c.showMouse) h += GAP + MOUSE_H;
         if (c.showSpace) h += GAP + SPACE_H;
+        if (c.showCps) h += GAP + CPS_H;
         return new int[]{(int) (c.keysX * sw), (int) (c.keysY * sh), w, h};
     }
 
@@ -174,10 +192,19 @@ public final class Hud {
 
     private static void outline(GuiGraphics g, int[] b, boolean active) {
         int col = active ? 0xFFFFFFFF : Theme.accent();
-        g.fill(b[0] - 1, b[1] - 1, b[0] + b[2] + 1, b[1], col);
-        g.fill(b[0] - 1, b[1] + b[3], b[0] + b[2] + 1, b[1] + b[3] + 1, col);
-        g.fill(b[0] - 1, b[1], b[0], b[1] + b[3], col);
-        g.fill(b[0] + b[2], b[1], b[0] + b[2] + 1, b[1] + b[3], col);
+        Draw.border(g, b[0] - 2, b[1] - 2, b[2] + 4, b[3] + 4, RADIUS + 2, col);
+    }
+
+    // ------------------------------------------------------------ анимации
+
+    /** Плавное значение 0..1 для нажатия/включения. */
+    private static float anim(String id, boolean on) {
+        float a = ANIM.getOrDefault(id, 0f);
+        float t = on ? 1f : 0f;
+        a += (t - a) * Math.min(1f, dt * 18f);
+        if (Math.abs(t - a) < 0.01f) a = t;
+        ANIM.put(id, a);
+        return a;
     }
 
     // ------------------------------------------------------------ кейстроки
@@ -188,35 +215,48 @@ public final class Hud {
         int y0 = b[1];
         int total = b[2];
 
-        key(g, mc, x0 + K + GAP, y0, K, K, "W", mc.options.keyUp.isDown());
+        key(g, mc, "w", x0 + K + GAP, y0, K, K, "W", mc.options.keyUp.isDown());
         int y1 = y0 + K + GAP;
-        key(g, mc, x0, y1, K, K, "A", mc.options.keyLeft.isDown());
-        key(g, mc, x0 + K + GAP, y1, K, K, "S", mc.options.keyDown.isDown());
-        key(g, mc, x0 + 2 * (K + GAP), y1, K, K, "D", mc.options.keyRight.isDown());
+        key(g, mc, "a", x0, y1, K, K, "A", mc.options.keyLeft.isDown());
+        key(g, mc, "s", x0 + K + GAP, y1, K, K, "S", mc.options.keyDown.isDown());
+        key(g, mc, "d", x0 + 2 * (K + GAP), y1, K, K, "D", mc.options.keyRight.isDown());
 
         int y = y1 + K + GAP;
         if (c.showMouse) {
             int mw = (total - GAP) / 2;
-            String l = c.showCps ? "ЛКМ " + LEFT.size() : "ЛКМ";
-            String r = c.showCps ? "ПКМ " + RIGHT.size() : "ПКМ";
-            key(g, mc, x0, y, mw, K, l, mc.options.keyAttack.isDown());
-            key(g, mc, x0 + mw + GAP, y, mw, K, r, mc.options.keyUse.isDown());
-            y += K + GAP;
+            key(g, mc, "lmb", x0, y, mw, MOUSE_H, "ЛКМ", mc.options.keyAttack.isDown());
+            key(g, mc, "rmb", x0 + mw + GAP, y, total - mw - GAP, MOUSE_H, "ПКМ", mc.options.keyUse.isDown());
+            y += MOUSE_H + GAP;
         }
         if (c.showSpace) {
-            boolean down = mc.options.keyJump.isDown();
-            g.fill(x0, y, x0 + total, y + SPACE_H, down ? Theme.withAlpha(Theme.accent(), 0.92f) : Theme.keyBg());
+            float a = anim("space", mc.options.keyJump.isDown());
+            Draw.roundRect(g, x0, y, total, SPACE_H, 3,
+                    Draw.lerpColor(Theme.keyBg(), Theme.withAlpha(Theme.accent(), 0.92f), a));
+            Draw.roundRect(g, x0 + total / 2 - 8, y + SPACE_H / 2 - 1, 16, 2, 1,
+                    Draw.lerpColor(Theme.subText(), 0xFFFFFFFF, a));
+            y += SPACE_H + GAP;
+        }
+        if (c.showCps) {
+            Draw.roundRect(g, x0, y, total, CPS_H, 3, Theme.keyBg());
+            String s = LEFT.size() + " | " + RIGHT.size() + " CPS";
+            center(g, mc.font, s, x0 + total / 2, y + (CPS_H - 8) / 2, Theme.subText());
         }
     }
 
-    private static void key(GuiGraphics g, Minecraft mc, int x, int y, int w, int h, String label, boolean down) {
-        int bg = down ? Theme.withAlpha(Theme.accent(), 0.92f) : Theme.keyBg();
-        g.fill(x, y, x + w, y + h, bg);
-        int fg = down ? 0xFFFFFFFF : Theme.text();
-        center(g, mc.font, label, x + w / 2, y + (h - 8) / 2, fg);
+    private static void key(GuiGraphics g, Minecraft mc, String id, int x, int y, int w, int h,
+                            String label, boolean down) {
+        float a = anim(id, down);
+        int bg = Draw.lerpColor(Theme.keyBg(), Theme.withAlpha(Theme.accent(), 0.92f), a);
+        Draw.roundRect(g, x, y, w, h, 3, bg);
+        center(g, mc.font, label, x + w / 2, y + (h - 8) / 2, Draw.lerpColor(Theme.text(), 0xFFFFFFFF, a));
     }
 
     // ------------------------------------------------------------ таргет худ
+
+    private static int hpColor(float ratio) {
+        if (ratio > 0.5f) return Draw.lerpColor(0xFFEAB308, 0xFF22C55E, (ratio - 0.5f) * 2f);
+        return Draw.lerpColor(0xFFEF4444, 0xFFEAB308, ratio * 2f);
+    }
 
     private static void drawTarget(GuiGraphics g, Minecraft mc, Config c, boolean edit) {
         long now = System.currentTimeMillis();
@@ -241,28 +281,49 @@ public final class Hud {
             max = 20f;
         }
 
+        float ratio = Math.max(0f, Math.min(1f, hp / max));
+        if (real && shown != animFor) {
+            animFor = shown;
+            barRatio = ratio;
+            ghostRatio = ratio;
+        }
+        barRatio += (ratio - barRatio) * Math.min(1f, dt * 14f);
+        if (ratio > ghostRatio) ghostRatio = ratio;
+        else ghostRatio += (ratio - ghostRatio) * Math.min(1f, dt * 2.2f);
+
         int[] b = targetBounds(mc, c);
         int x = b[0];
         int y = b[1];
         int w = b[2];
         int h = b[3];
 
-        float ratio = Math.max(0f, Math.min(1f, hp / max));
-        int barColor = ratio > 0.5f ? 0xFF22C55E : (ratio > 0.25f ? 0xFFEAB308 : 0xFFEF4444);
-
-        g.fill(x, y, x + w, y + h, Theme.panel());
+        Draw.shadow(g, x, y, w, h, RADIUS);
+        Draw.roundRect(g, x, y, w, h, RADIUS, Theme.panel());
+        Draw.border(g, x, y, w, h, RADIUS, Theme.withAlpha(Theme.border(), 0.9f));
 
         if (name.length() > 14) name = name.substring(0, 14);
-        g.drawString(mc.font, name, x + 6, y + 5, Theme.text(), false);
+        g.drawString(mc.font, name, x + 8, y + 7, Theme.text(), false);
 
         String hpText = String.format(Locale.ROOT, "%.1f", hp);
-        g.drawString(mc.font, hpText, x + w - 6 - mc.font.width(hpText), y + 5, Theme.subText(), false);
+        int hpX = x + w - 8 - mc.font.width(hpText);
+        g.drawString(mc.font, hpText, hpX, y + 7, Theme.subText(), false);
 
-        int bx = x + 6;
-        int by = y + 19;
-        int bw = w - 12;
-        g.fill(bx, by, bx + bw, by + 3, Theme.withAlpha(0x000000, 0.45f));
-        g.fill(bx, by, bx + (int) (bw * ratio), by + 3, barColor);
+        if (c.winLose && mc.player != null) {
+            float diff = real ? mc.player.getHealth() - hp : 6f;
+            String wl = diff > 0.05f ? "W" : (diff < -0.05f ? "L" : "=");
+            int col = diff > 0.05f ? 0xFF22C55E : (diff < -0.05f ? 0xFFEF4444 : Theme.subText());
+            g.drawString(mc.font, wl, hpX - 8 - mc.font.width(wl), y + 7, col, false);
+        }
+
+        int bx = x + 8;
+        int by = y + h - 13;
+        int bw = w - 16;
+        int bh = 6;
+        Draw.roundRect(g, bx, by, bw, bh, 3, Theme.withAlpha(0x000000, 0.45f));
+        int gw = (int) (bw * ghostRatio);
+        if (gw > 0) Draw.roundRect(g, bx, by, gw, bh, 3, 0x66FFFFFF);
+        int fw = (int) (bw * barRatio);
+        if (fw > 0) Draw.roundRect(g, bx, by, fw, bh, 3, hpColor(barRatio));
     }
 
     // ----------------------------------------------------------------- util
