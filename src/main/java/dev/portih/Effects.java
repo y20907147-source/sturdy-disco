@@ -49,12 +49,21 @@ public final class Effects {
                     target.getX(), target.getY() + target.getBbHeight() * 0.6, target.getZ(),
                     Math.max(1, c.particleCount), 0.7, 0.35);
         }
-        if (c.hitSound) {
-            int i = Math.floorMod(c.hitSoundIndex, HIT_SOUND_IDS.length);
-            SoundEvent ev = SoundEvent.createVariableRangeEvent(
-                    Identifier.withDefaultNamespace(HIT_SOUND_IDS[i]));
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(ev, 1.0f, c.hitVolume));
+        if (c.hitSound) playHit();
+    }
+
+    /** Звук удара (встроенный или свой .wav). Используется и кнопкой "Проверить". */
+    public static void playHit() {
+        Minecraft mc = Minecraft.getInstance();
+        Config c = Config.get();
+        if (CustomSounds.has(c.hitCustom)) {
+            CustomSounds.play(c.hitCustom, c.hitVolume, 1.0f);
+            return;
         }
+        int i = Math.floorMod(c.hitSoundIndex, HIT_SOUND_IDS.length);
+        SoundEvent ev = SoundEvent.createVariableRangeEvent(
+                Identifier.withDefaultNamespace(HIT_SOUND_IDS[i]));
+        mc.getSoundManager().play(SimpleSoundInstance.forUI(ev, 1.0f, c.hitVolume));
     }
 
     public static void spawn(Minecraft mc, ParticleOptions type, double x, double y, double z,
