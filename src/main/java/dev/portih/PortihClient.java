@@ -44,8 +44,8 @@ public class PortihClient implements ClientModInitializer {
                 Config.get().spin = !Config.get().spin;
                 Config.save();
             }
+            HitTracker.update(client);
             VictorySound.tick(client);
-            SwordSpin.tick(client);
         });
     }
 }
