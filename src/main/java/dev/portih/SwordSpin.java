@@ -1,28 +1,40 @@
 package dev.portih;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.phys.EntityHitResult;
 
 public final class SwordSpin {
     private static long startMs = 0L;
     private static boolean wasDown;
+    private static boolean wasSwinging;
 
     private SwordSpin() {}
 
-    /** Вызывается каждый клиентский тик: ловит удар (нажатие атаки). */
+    /**
+     * Ловит удар: нажатие атаки ИЛИ начало замаха руки.
+     * Вызывается каждый тик и каждый кадр отрисовки меча.
+     */
     public static void tick(Minecraft mc) {
         Config c = Config.get();
-        if (mc.player == null) {
+        LocalPlayer player = mc.player;
+        if (player == null) {
             wasDown = false;
+            wasSwinging = false;
             return;
         }
+
         boolean down = mc.screen == null && mc.options.keyAttack.isDown();
-        if (down && !wasDown) {
-            if (!c.spinOnlyOnTarget || mc.hitResult instanceof EntityHitResult) {
-                startMs = System.currentTimeMillis();
-            }
-        }
+        boolean swinging = player.swinging;
+
+        boolean fired = (down && !wasDown) || (swinging && !wasSwinging);
         wasDown = down;
+        wasSwinging = swinging;
+
+        if (!fired) return;
+        if (c.spinOnlyOnTarget && !(mc.hitResult instanceof EntityHitResult)) return;
+
+        startMs = System.currentTimeMillis();
     }
 
     /** Текущий угол поворота меча в градусах. */
