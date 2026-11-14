@@ -11,6 +11,9 @@ public class Config {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static Config instance = new Config();
 
+    // ---- меню ----
+    public int lastTab = 0;
+
     // ---- вид ----
     public boolean lightTheme = false;
     public int accent = 0;
@@ -33,8 +36,13 @@ public class Config {
     // ---- меч ----
     public boolean smallSword = true;
     public float swordScale = 0.60f;
+    public float swordY = 0.0f;          // высота меча (смещение вверх/вниз)
     public boolean spin = true;
-    public float spinSpeed = 1.0f;
+    public int spinMode = 0;             // 0 = при ударе, 1 = постоянно
+    public boolean spinOnlyOnTarget = true;
+    public float spinDuration = 0.45f;   // секунды (режим "при ударе")
+    public int spinTurns = 1;            // оборотов за удар
+    public float spinSpeed = 1.0f;       // об/с (режим "постоянно")
     public int spinAxis = 0;
     public boolean allItems = false;
 
