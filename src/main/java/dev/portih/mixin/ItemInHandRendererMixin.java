@@ -47,7 +47,7 @@ public class ItemInHandRendererMixin {
             float s = c.swordScale;
             pose.scale(s, s, s);
         }
-        // 3. кручение
+        // 3. кручение вокруг ЦЕНТРА меча (а не вокруг точки руки), чтобы меч вертелся на месте
         if (c.spin) {
             float angle = SwordSpin.angle();
             if (angle != 0f) {
@@ -56,7 +56,14 @@ public class ItemInHandRendererMixin {
                     case 2 -> Axis.XP;
                     default -> Axis.YP;
                 };
+                boolean left = context == ItemDisplayContext.FIRST_PERSON_LEFT_HAND;
+                // Центр модели в системе руки = смещение из display-трансформа handheld-предметов.
+                float cx = (left ? -1f : 1f) * 1.13f / 16f;
+                float cy = 3.2f / 16f;
+                float cz = 1.13f / 16f;
+                pose.translate(cx, cy, cz);
                 pose.mulPose(axis.rotationDegrees(angle));
+                pose.translate(-cx, -cy, -cz);
             }
         }
     }
