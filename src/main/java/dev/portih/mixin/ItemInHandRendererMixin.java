@@ -5,7 +5,6 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
 import dev.portih.Config;
 import dev.portih.SwordSpin;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ItemInHandRenderer;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -34,8 +33,7 @@ public class ItemInHandRendererMixin {
                 && context != ItemDisplayContext.FIRST_PERSON_LEFT_HAND) return;
         if (!c.allItems && !stack.is(ItemTags.SWORDS)) return;
 
-        // проверяем удар на каждом кадре, чтобы быстрые клики не пропадали
-        SwordSpin.tick(Minecraft.getInstance());
+        SwordSpin.handRenders++;
 
         pose.pushPose();
         portih$pushed = true;
