@@ -37,6 +37,8 @@ public class Config {
     public boolean smallSword = true;
     public float swordScale = 0.60f;
     public float swordY = 0.0f;
+    public boolean noSwing = true;       // убрать ванильный взмах меча
+    public boolean noDip = true;         // не опускать меч после удара
     public boolean spin = true;
     public int spinMode = 0;             // 0 = по удару, 1 = постоянно
     public int spinTrigger = 0;          // 0 = при попадании, 1 = при клике
@@ -50,7 +52,6 @@ public class Config {
     public boolean hitParticles = true;
     public int particleType = 0;
     public int particleCount = 8;
-    public boolean hitMarker = true;
     public boolean hitFlash = false;
     public float flashStrength = 0.5f;
     public boolean hitSound = false;
