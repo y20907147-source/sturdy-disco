@@ -97,6 +97,8 @@ public class ConfigScreen extends Screen {
                 slider("Размер", 0.10, 1.50, () -> c.swordScale, v -> c.swordScale = (float) v, "%.2f");
                 slider("Высота", -0.60, 0.60, () -> c.swordY, v -> c.swordY = (float) v, "%.2f");
                 toggle("Все предметы", () -> c.allItems, v -> c.allItems = v);
+                toggle("Без взмаха", () -> c.noSwing, v -> c.noSwing = v);
+                toggle("Без опускания", () -> c.noDip, v -> c.noDip = v);
                 toggle("Кручение", () -> c.spin, v -> c.spin = v);
                 cycle("Режим", SPIN_MODES, () -> c.spinMode, v -> c.spinMode = v);
                 cycle("Триггер", TRIGGERS, () -> c.spinTrigger, v -> c.spinTrigger = v);
@@ -109,13 +111,12 @@ public class ConfigScreen extends Screen {
                 toggle("Частицы при ударе", () -> c.hitParticles, v -> c.hitParticles = v);
                 cycle("Тип частиц", Effects.PARTICLE_NAMES, () -> c.particleType, v -> c.particleType = v);
                 slider("Кол-во частиц", 1, 30, () -> c.particleCount, v -> c.particleCount = (int) Math.round(v), "%.0f");
-                toggle("Хитмаркер", () -> c.hitMarker, v -> c.hitMarker = v);
+                toggle("Частицы победы", () -> c.victoryParticles, v -> c.victoryParticles = v);
                 toggle("Вспышка экрана", () -> c.hitFlash, v -> c.hitFlash = v);
                 slider("Сила вспышки", 0.1, 1.0, () -> c.flashStrength, v -> c.flashStrength = (float) v, "%.2f");
                 toggle("Звук удара", () -> c.hitSound, v -> c.hitSound = v);
                 cycle("Тип звука", Effects.HIT_SOUND_NAMES, () -> c.hitSoundIndex, v -> c.hitSoundIndex = v);
                 slider("Громкость удара", 0.0, 2.0, () -> c.hitVolume, v -> c.hitVolume = (float) v, "%.2f");
-                toggle("Частицы победы", () -> c.victoryParticles, v -> c.victoryParticles = v);
             }
             case 3 -> {
                 toggle("Звук победы", () -> c.victorySound, v -> c.victorySound = v);
@@ -180,14 +181,16 @@ public class ConfigScreen extends Screen {
 
     private void layout() {
         pw = Math.min(this.width - 24, 480);
-        ph = Math.min(this.height - 24, 216);
+        ph = Math.min(this.height - 24, 226);
         px = (this.width - pw) / 2;
         py = (this.height - ph) / 2;
         int pad = 16;
         x0 = px + pad;
         y0 = py + 40;
         colW = (pw - pad * 2 - 20) / 2;
-        rowH = Math.max(16, Math.min(22, (ph - 40 - 32) / 6));
+
+        int rowsPerCol = Math.max(6, (rows.size() + 1) / 2);
+        rowH = Math.max(15, Math.min(22, (ph - 72) / rowsPerCol));
 
         for (int i = 0; i < rows.size(); i++) {
             Row r = rows.get(i);
