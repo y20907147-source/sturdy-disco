@@ -72,31 +72,15 @@ public final class Effects {
         }
     }
 
-    /** Вспышка экрана и хитмаркер. */
+    /** Вспышка экрана при попадании. */
     public static void renderOverlay(GuiGraphics g, Minecraft mc, Config c) {
-        if (HitTracker.lastHitMs == 0L) return;
+        if (!c.hitFlash || HitTracker.lastHitMs == 0L) return;
         long dt = System.currentTimeMillis() - HitTracker.lastHitMs;
+        if (dt >= 200L) return;
+
         int sw = mc.getWindow().getGuiScaledWidth();
         int sh = mc.getWindow().getGuiScaledHeight();
-
-        if (c.hitFlash && dt < 200L) {
-            float a = (1f - dt / 200f) * c.flashStrength * 0.35f;
-            if (a > 0.02f) g.fill(0, 0, sw, sh, Theme.withAlpha(Theme.accent(), a));
-        }
-
-        if (c.hitMarker && dt < 250L) {
-            float a = 1f - dt / 250f;
-            if (a > 0.05f) {
-                int col = Theme.withAlpha(0xFFFFFF, a);
-                int cx = sw / 2;
-                int cy = sh / 2;
-                for (int i = 3; i <= 8; i++) {
-                    g.fill(cx - i - 1, cy - i - 1, cx - i + 1, cy - i + 1, col);
-                    g.fill(cx + i - 1, cy - i - 1, cx + i + 1, cy - i + 1, col);
-                    g.fill(cx - i - 1, cy + i - 1, cx - i + 1, cy + i + 1, col);
-                    g.fill(cx + i - 1, cy + i - 1, cx + i + 1, cy + i + 1, col);
-                }
-            }
-        }
+        float a = (1f - dt / 200f) * c.flashStrength * 0.35f;
+        if (a > 0.02f) g.fill(0, 0, sw, sh, Theme.withAlpha(Theme.accent(), a));
     }
 }
