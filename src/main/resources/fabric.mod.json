@@ -10,7 +10,10 @@
   "entrypoints": {
     "client": ["dev.portih.PortihClient"]
   },
-  "mixins": ["portihmod.mixins.json"],
+  "mixins": [
+    "portihmod.mixins.json",
+    "portihmod.swing.mixins.json"
+  ],
   "depends": {
     "fabricloader": ">=0.18.0",
     "minecraft": "~1.21.11",
