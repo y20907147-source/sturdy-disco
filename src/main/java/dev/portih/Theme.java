@@ -26,11 +26,16 @@ public final class Theme {
 
     /** Непрозрачная панель меню. */
     public static int panelSolid() {
-        return 0xFF000000 | (Config.get().lightTheme ? 0xF1F5F9 : 0x12161D);
+        return 0xFF000000 | (Config.get().lightTheme ? 0xF8FAFC : 0x111418);
     }
 
-    public static int sidebar() {
-        return 0xFF000000 | (Config.get().lightTheme ? 0xE2E8F0 : 0x0C0F14);
+    public static int border() {
+        return Config.get().lightTheme ? 0xFFCBD5E1 : 0xFF2A2F3A;
+    }
+
+    /** Выключенный тумблер / пустая часть слайдера. */
+    public static int muted() {
+        return Config.get().lightTheme ? 0xFFCBD5E1 : 0xFF374151;
     }
 
     public static int keyBg() {
