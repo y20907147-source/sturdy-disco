@@ -2,10 +2,10 @@ package dev.portih;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.phys.EntityHitResult;
 
 public final class VictorySound {
     public static final String[] IDS = {
@@ -23,41 +23,39 @@ public final class VictorySound {
             "Наковальня", "Фейерверк", "Рык дракона", "Колокол"
     };
 
-    private static LivingEntity target;
-    private static long targetTime;
-    private static float lastDist;
+    private static float lastDist = 99f;
 
     private VictorySound() {}
 
-    /** Вызывается каждый клиентский тик. */
+    /** Вызывается каждый клиентский тик. Победа = умерла цель, по которой ты попал. */
     public static void tick(Minecraft mc) {
-        if (mc.player == null || mc.level == null) {
-            target = null;
-            return;
-        }
+        if (mc.player == null || mc.level == null) return;
+
+        LivingEntity t = HitTracker.lastHitEntity;
+        if (t == null) return;
+
         long now = System.currentTimeMillis();
-
-        if (mc.options.keyAttack.isDown()
-                && mc.hitResult instanceof EntityHitResult r
-                && r.getEntity() instanceof LivingEntity le
-                && le != mc.player) {
-            target = le;
-            targetTime = now;
-        }
-
-        if (target == null) return;
-        if (now - targetTime > 5000L) {
-            target = null;
-            return;
-        }
-        if (target.isAlive()) {
-            lastDist = mc.player.distanceTo(target);
+        if (now - HitTracker.lastHitMs > 5000L) {
+            HitTracker.lastHitEntity = null;
             return;
         }
 
-        boolean nearby = lastDist < 16f;
-        target = null;
-        if (nearby && Config.get().victorySound) play();
+        if (!t.isDeadOrDying() && !t.isRemoved()) {
+            lastDist = mc.player.distanceTo(t);
+            return;
+        }
+
+        boolean died = t.isDeadOrDying() || lastDist < 8f;
+        HitTracker.lastHitEntity = null;
+        if (!died) return;
+        if (mc.player.distanceTo(t) > 24f) return;
+
+        Config c = Config.get();
+        if (c.victorySound) play();
+        if (c.victoryParticles) {
+            Effects.spawn(mc, ParticleTypes.TOTEM_OF_UNDYING,
+                    t.getX(), t.getY() + t.getBbHeight() * 0.5, t.getZ(), 30, 1.0, 0.6);
+        }
     }
 
     public static void play() {
