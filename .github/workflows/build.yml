@@ -1,43 +1,32 @@
-plugins {
-    id 'fabric-loom' version "${loom_version}"
-    id 'maven-publish'
-}
+name: build
 
-version = project.mod_version
-group = project.maven_group
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
-base {
-    archivesName = project.archives_base_name
-}
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
-repositories {
-    mavenCentral()
-}
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
 
-dependencies {
-    minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: current
 
-    // MP3-декодер для своих звуков, вшивается внутрь jar мода
-    implementation "javazoom:jlayer:1.0.1"
-    include "javazoom:jlayer:1.0.1"
-}
+      - name: Build
+        run: gradle build --no-daemon
 
-processResources {
-    inputs.property "version", project.version
-    filesMatching("fabric.mod.json") {
-        expand "version": inputs.properties.version
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    it.options.release = 21
-}
-
-java {
-    withSourcesJar()
-    sourceCompatibility = JavaVersion.VERSION_21
-    targetCompatibility = JavaVersion.VERSION_21
-}
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: portihmod
+          path: build/libs/*.jar
