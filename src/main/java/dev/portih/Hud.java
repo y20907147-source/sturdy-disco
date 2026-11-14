@@ -8,15 +8,17 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.EntityHitResult;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayDeque;
 import java.util.Locale;
 
 public final class Hud {
-    private static final int K = 24;
-    private static final int GAP = 3;
-    private static final int TARGET_W = 140;
-    private static final int TARGET_H = 40;
+    private static final int K = 20;
+    private static final int GAP = 2;
+    private static final int SPACE_H = 8;
+    private static final int TARGET_W = 120;
+    private static final int TARGET_H = 28;
 
     private static final ArrayDeque<Long> LEFT = new ArrayDeque<>();
     private static final ArrayDeque<Long> RIGHT = new ArrayDeque<>();
@@ -46,7 +48,8 @@ public final class Hud {
         if (!c.hudEnabled) return;
 
         pollClicks(mc);
-        boolean edit = mc.screen instanceof ChatScreen;
+        boolean chat = mc.screen instanceof ChatScreen;
+        boolean edit = chat || mc.screen instanceof HudEditorScreen;
         updateDrag(mc, c, edit);
 
         if (c.keystrokes) {
@@ -57,13 +60,11 @@ public final class Hud {
             drawTarget(g, mc, c, edit);
             if (edit) outline(g, targetBounds(mc, c), dragging == 2);
         }
-        if (edit) {
+        if (chat) {
             int sw = mc.getWindow().getGuiScaledWidth();
-            String hint = "Редактор HUD: перетаскивай панели мышью";
+            String hint = "Перетаскивай панели мышью";
             int tw = mc.font.width(hint);
-            int hx = sw / 2 - tw / 2;
-            g.fill(hx - 6, 4, hx + tw + 6, 18, Theme.panel());
-            g.drawString(mc.font, hint, hx, 8, Theme.text(), false);
+            g.drawString(mc.font, hint, sw / 2 - tw / 2, 6, Theme.subText(), false);
         }
     }
 
@@ -92,8 +93,8 @@ public final class Hud {
         int sh = mc.getWindow().getGuiScaledHeight();
         int w = 3 * K + 2 * GAP;
         int h = 2 * K + GAP;
-        if (c.showMouse) h += GAP + (c.showCps ? 28 : K);
-        if (c.showSpace) h += GAP + 16;
+        if (c.showMouse) h += GAP + K;
+        if (c.showSpace) h += GAP + SPACE_H;
         return new int[]{(int) (c.keysX * sw), (int) (c.keysY * sh), w, h};
     }
 
@@ -121,11 +122,22 @@ public final class Hud {
             return;
         }
 
-        boolean pressed = mc.mouseHandler.isLeftPressed();
+        // Мышь читаем напрямую из окна: работает в любом экране.
+        long handle = GLFW.glfwGetCurrentContext();
+        if (handle == 0L) return;
+
+        boolean pressed = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+        double[] cx = new double[1];
+        double[] cy = new double[1];
+        GLFW.glfwGetCursorPos(handle, cx, cy);
+        int[] ww = new int[1];
+        int[] wh = new int[1];
+        GLFW.glfwGetWindowSize(handle, ww, wh);
+
         int sw = mc.getWindow().getGuiScaledWidth();
         int sh = mc.getWindow().getGuiScaledHeight();
-        double mx = mc.mouseHandler.xpos() * sw / Math.max(1, mc.getWindow().getScreenWidth());
-        double my = mc.mouseHandler.ypos() * sh / Math.max(1, mc.getWindow().getScreenHeight());
+        double mx = cx[0] * sw / Math.max(1, ww[0]);
+        double my = cy[0] * sh / Math.max(1, wh[0]);
 
         if (pressed && !wasPressed) {
             int[] tb = targetBounds(mc, c);
@@ -185,13 +197,15 @@ public final class Hud {
         int y = y1 + K + GAP;
         if (c.showMouse) {
             int mw = (total - GAP) / 2;
-            int mh = c.showCps ? 28 : K;
-            mouseKey(g, mc, c, x0, y, mw, mh, "ЛКМ", mc.options.keyAttack.isDown(), LEFT.size());
-            mouseKey(g, mc, c, x0 + mw + GAP, y, mw, mh, "ПКМ", mc.options.keyUse.isDown(), RIGHT.size());
-            y += mh + GAP;
+            String l = c.showCps ? "ЛКМ " + LEFT.size() : "ЛКМ";
+            String r = c.showCps ? "ПКМ " + RIGHT.size() : "ПКМ";
+            key(g, mc, x0, y, mw, K, l, mc.options.keyAttack.isDown());
+            key(g, mc, x0 + mw + GAP, y, mw, K, r, mc.options.keyUse.isDown());
+            y += K + GAP;
         }
         if (c.showSpace) {
-            key(g, mc, x0, y, total, 16, "ПРЫЖОК", mc.options.keyJump.isDown());
+            boolean down = mc.options.keyJump.isDown();
+            g.fill(x0, y, x0 + total, y + SPACE_H, down ? Theme.withAlpha(Theme.accent(), 0.92f) : Theme.keyBg());
         }
     }
 
@@ -200,20 +214,6 @@ public final class Hud {
         g.fill(x, y, x + w, y + h, bg);
         int fg = down ? 0xFFFFFFFF : Theme.text();
         center(g, mc.font, label, x + w / 2, y + (h - 8) / 2, fg);
-    }
-
-    private static void mouseKey(GuiGraphics g, Minecraft mc, Config c, int x, int y, int w, int h,
-                                 String label, boolean down, int cps) {
-        int bg = down ? Theme.withAlpha(Theme.accent(), 0.92f) : Theme.keyBg();
-        g.fill(x, y, x + w, y + h, bg);
-        int fg = down ? 0xFFFFFFFF : Theme.text();
-        int sub = down ? 0xFFFFFFFF : Theme.subText();
-        if (c.showCps) {
-            center(g, mc.font, label, x + w / 2, y + 4, fg);
-            center(g, mc.font, cps + " CPS", x + w / 2, y + h - 12, sub);
-        } else {
-            center(g, mc.font, label, x + w / 2, y + (h - 8) / 2, fg);
-        }
     }
 
     // ------------------------------------------------------------ таргет худ
@@ -231,17 +231,14 @@ public final class Hud {
         String name;
         float hp;
         float max;
-        float dist;
         if (real) {
             name = shown.getName().getString();
             hp = shown.getHealth();
             max = Math.max(1f, shown.getMaxHealth());
-            dist = mc.player.distanceTo(shown);
         } else {
             name = "Игрок";
             hp = 14f;
             max = 20f;
-            dist = 3.5f;
         }
 
         int[] b = targetBounds(mc, c);
@@ -254,22 +251,18 @@ public final class Hud {
         int barColor = ratio > 0.5f ? 0xFF22C55E : (ratio > 0.25f ? 0xFFEAB308 : 0xFFEF4444);
 
         g.fill(x, y, x + w, y + h, Theme.panel());
-        g.fill(x, y, x + 2, y + h, Theme.accent());
 
-        if (name.length() > 16) name = name.substring(0, 16);
-        g.drawString(mc.font, name, x + 8, y + 5, Theme.text(), false);
+        if (name.length() > 14) name = name.substring(0, 14);
+        g.drawString(mc.font, name, x + 6, y + 5, Theme.text(), false);
 
-        String distText = String.format(Locale.ROOT, "%.1fм", dist);
-        g.drawString(mc.font, distText, x + w - 8 - mc.font.width(distText), y + 5, Theme.subText(), false);
+        String hpText = String.format(Locale.ROOT, "%.1f", hp);
+        g.drawString(mc.font, hpText, x + w - 6 - mc.font.width(hpText), y + 5, Theme.subText(), false);
 
-        int bx = x + 8;
-        int by = y + 18;
-        int bw = w - 16;
-        g.fill(bx, by, bx + bw, by + 6, Theme.withAlpha(0x000000, 0.45f));
-        g.fill(bx, by, bx + (int) (bw * ratio), by + 6, barColor);
-
-        String hpText = String.format(Locale.ROOT, "%.1f / %.1f HP", hp, max);
-        g.drawString(mc.font, hpText, bx, y + 28, Theme.subText(), false);
+        int bx = x + 6;
+        int by = y + 19;
+        int bw = w - 12;
+        g.fill(bx, by, bx + bw, by + 3, Theme.withAlpha(0x000000, 0.45f));
+        g.fill(bx, by, bx + (int) (bw * ratio), by + 3, barColor);
     }
 
     // ----------------------------------------------------------------- util
