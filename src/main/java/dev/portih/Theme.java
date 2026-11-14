@@ -49,4 +49,22 @@ public final class Theme {
     public static int subText() {
         return Config.get().lightTheme ? 0xFF4B5563 : 0xFF9CA3AF;
     }
+
+    /** Боковая панель меню. */
+    public static int sidebar() {
+        return Config.get().lightTheme ? 0xFFEEF2F7 : 0xFF0C0F13;
+    }
+
+    /** Карточка настройки. */
+    public static int card() {
+        return Config.get().lightTheme ? 0xFFEFF3F8 : 0xFF181C23;
+    }
+
+    public static int cardHover() {
+        return Config.get().lightTheme ? 0xFFE2E8F0 : 0xFF212631;
+    }
+
+    public static int chip() {
+        return Config.get().lightTheme ? 0xFFDDE3EC : 0xFF262C38;
+    }
 }
