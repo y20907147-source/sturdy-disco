@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "portihmod",
+  "version": "${version}",
+  "name": "PortihMod",
+  "description": "Target HUD, keystrokes + CPS, small spinning sword, victory sounds, themed menu.",
+  "authors": ["Portih"],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.portih.PortihClient"]
+  },
+  "mixins": ["portihmod.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.18.0",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
