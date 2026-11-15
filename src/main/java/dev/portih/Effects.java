@@ -92,4 +92,24 @@ public final class Effects {
         float a = (1f - dt / 200f) * c.flashStrength * 0.35f;
         if (a > 0.02f) g.fill(0, 0, sw, sh, Theme.withAlpha(Theme.accent(), a));
     }
+
+    /** Крестик у прицела при попадании (красный, если цель добита). */
+    public static void renderHitMarker(GuiGraphics g, Minecraft mc, Config c) {
+        if (!c.hitMarker || HitTracker.lastHitMs == 0L) return;
+        long age = System.currentTimeMillis() - HitTracker.lastHitMs;
+        if (age >= 260L) return;
+        float k = 1f - age / 260f;
+        float cx = mc.getWindow().getGuiScaledWidth() * 0.5f;
+        float cy = mc.getWindow().getGuiScaledHeight() * 0.5f;
+        LivingEntity le = HitTracker.lastHitEntity;
+        int base = (le != null && !le.isAlive()) ? Theme.danger() : 0xFFFFFFFF;
+        int col = Draw.fade(base, k);
+        float in = 4f + (1f - k) * 3f;
+        float out = in + 5f;
+        for (int i = 0; i < 4; i++) {
+            float sx = (i & 1) == 0 ? -1f : 1f;
+            float sy = (i & 2) == 0 ? -1f : 1f;
+            Draw.line(g, cx + sx * in, cy + sy * in, cx + sx * out, cy + sy * out, 2f, col);
+        }
+    }
 }
