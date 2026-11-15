@@ -37,8 +37,8 @@ public class Config {
     public boolean showCps = true;
     public float keysX = 0.02f;
     public float keysY = 0.45f;
-    
-     // ---- панели (инфо, зелья, клавиши, кулдауны) ----
+
+    // ---- панели (инфо, зелья, клавиши, кулдауны) ----
     public boolean panelInfo = true;
     public boolean panelPotions = true;
     public boolean panelKeybinds = true;
@@ -51,7 +51,7 @@ public class Config {
     public float keybindsY = 0.27f;
     public float cooldownsX = 0.70f;
     public float cooldownsY = 0.01f;
-    
+
     // ---- меч ----
     public boolean smallSword = true;
     public float swordScale = 0.60f;
