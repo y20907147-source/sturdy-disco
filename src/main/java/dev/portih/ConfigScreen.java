@@ -19,7 +19,7 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
 public class ConfigScreen extends Screen {
-    private static final String[] TABS = {"HUD", "Меч", "Эффекты", "Звук", "Ивенты", "Вид"};
+    private static final String[] TABS = {"HUD", "Меч", "Эффекты", "Звук", "Ивенты", "Бой", "Вид"};
     private static final String[] AXES = {"Волчок (Y)", "Колесо (Z)", "Кувырок (X)"};
     private static final String[] SPIN_MODES = {"По удару", "Постоянно"};
     private static final String[] TRIGGERS = {"При попадании", "При клике"};
@@ -176,6 +176,15 @@ public class ConfigScreen extends Screen {
                 slider("Длительность (с)", 2, 15, () -> c.eventDuration, v -> c.eventDuration = (float) v, "%.0f");
                 action("Проверить оповещение", EventAlert::test);
                 toggle("Действия цели (лента)", () -> c.actionFeed, v -> c.actionFeed = v);
+            }
+            case 5 -> {
+                toggle("ESP на невидимок", () -> c.invisEsp, v -> c.invisEsp = v);
+                toggle("Локатор невидимок", () -> c.invisLocator, v -> c.invisLocator = v);
+                slider("Дальность (блоки)", 16, 128, () -> c.invisRange, v -> c.invisRange = (float) v, "%.0f");
+                toggle("Автосвап", () -> c.autoSwap, v -> c.autoSwap = v);
+                cycle("Автосвап: первый", AutoSwap.NAMES, () -> c.swapA, v -> c.swapA = v);
+                cycle("Автосвап: второй", AutoSwap.NAMES, () -> c.swapB, v -> c.swapB = v);
+                toggle("Авто-тотем", () -> c.autoTotem, v -> c.autoTotem = v);
             }
             default -> {
                 toggle("Светлая тема", () -> c.lightTheme, v -> c.lightTheme = v);
@@ -388,7 +397,8 @@ public class ConfigScreen extends Screen {
                     : "Рука: патч не сработал (возьми меч в руку)";
             case 3 -> "Свои звуки: .mp3 / .wav в config/portihmod/sounds или перетащи файл в окно.";
             case 4 -> "Слова-триггеры: поле eventKeywords в config/portihmod.json";
-            case 5 -> "Бинды: Настройки - Управление - Бинды клавиш - PortihMod";
+            case 5 -> "Автосвап: кнопка G (меняется в Управлении - PortihMod)";
+            case 6 -> "Бинды: Настройки - Управление - Бинды клавиш - PortihMod";
             default -> "";
         };
     }
