@@ -24,7 +24,7 @@ public class PortihClient implements ClientModInitializer {
                 Identifier.fromNamespaceAndPath(MOD_ID, "main"));
 
         openMenu = KeyBindingHelper.registerKeyBinding(new KeyMapping(
-                "key.portihmod.menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_RIGHT_SHIFT, category));
+                "key.portihmod.menu", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_INSERT, category));
         toggleHud = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.portihmod.toggle_hud", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
         toggleSpin = KeyBindingHelper.registerKeyBinding(new KeyMapping(
