@@ -17,6 +17,12 @@ public class PortihClient implements ClientModInitializer {
     public static KeyMapping toggleHud;
     public static KeyMapping toggleSpin;
     public static KeyMapping autoSwap;
+    public static KeyMapping middleKey;
+
+    /** Что делает колесико мыши (нажатие). Индекс хранится в Config.middleAction. */
+    public static final String[] MIDDLE_NAMES = {
+            "Ничего", "Автосвап", "Вкл/выкл HUD", "Вкл/выкл кручение меча", "Вкл/выкл ESP", "Вкл/выкл таргет ESP"
+    };
 
     @Override
     public void onInitializeClient() {
@@ -35,6 +41,9 @@ public class PortihClient implements ClientModInitializer {
         autoSwap = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.portihmod.autoswap", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, category));
 
+        middleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+                "key.portihmod.middle", InputConstants.Type.MOUSE, GLFW.GLFW_MOUSE_BUTTON_MIDDLE, category));
+
         HudRenderCallback.EVENT.register(Hud::render);
         ClientReceiveMessageEvents.GAME.register(EventAlert::onMessage);
 
@@ -51,10 +60,26 @@ public class PortihClient implements ClientModInitializer {
                 Config.save();
             }
             while (autoSwap.consumeClick()) AutoSwap.press(client);
+            while (middleKey.consumeClick()) middleAction(client);
             AutoSwap.tick(client);
             Locator.tick(client);
             HitTracker.update(client);
             VictorySound.tick(client);
         });
+    }
+
+    /** Действие по нажатию колесика мыши (выбирается в меню: вкладка "Вид"). */
+    private static void middleAction(net.minecraft.client.Minecraft client) {
+        if (client.screen != null) return;
+        Config c = Config.get();
+        switch (c.middleAction) {
+            case 1 -> AutoSwap.press(client);
+            case 2 -> c.hudEnabled = !c.hudEnabled;
+            case 3 -> c.spin = !c.spin;
+            case 4 -> c.esp = !c.esp;
+            case 5 -> c.targetEsp = !c.targetEsp;
+            default -> { return; }
+        }
+        Config.save();
     }
 }
