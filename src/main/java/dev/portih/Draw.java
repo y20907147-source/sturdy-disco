@@ -71,6 +71,29 @@ public final class Draw {
         }
     }
 
+    /** Горизонтальный градиент со скруглёнными краями (для полосок и линий). */
+    public static void hGradient(GuiGraphics g, int x, int y, int w, int h, int r, int c1, int c2) {
+        if (w <= 0 || h <= 0) return;
+        r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        for (int i = 0; i < w; i++) {
+            int in = 0;
+            if (r > 0) {
+                int d = Math.min(i, w - 1 - i);
+                if (d < r) in = inset(r, d);
+            }
+            float t = w <= 1 ? 0f : i / (float) (w - 1);
+            g.fill(x + i, y + in, x + i + 1, y + h - in, lerpColor(c1, c2, t));
+        }
+    }
+
+    /** Готовая панель: тень, фон, верхний блик и рамка. */
+    public static void panel(GuiGraphics g, int x, int y, int w, int h, int r, int bg, int border) {
+        shadow(g, x, y, w, h, r);
+        roundRect(g, x, y, w, h, r, bg);
+        if (w > 2 * r + 2) g.fill(x + r, y + 1, x + w - r, y + 2, 0x16FFFFFF);
+        border(g, x, y, w, h, r, border);
+    }
+
     /** Мягкая тень под панелью. */
     public static void shadow(GuiGraphics g, int x, int y, int w, int h, int r) {
         for (int k = 4; k >= 1; k--) {
