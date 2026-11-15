@@ -197,6 +197,7 @@ public class ConfigScreen extends Screen {
                 toggle("Светлая тема", () -> c.lightTheme, v -> c.lightTheme = v);
                 cycle("Акцент", Theme.ACCENT_NAMES, () -> c.accent, v -> c.accent = v);
                 slider("Прозрачность", 0.2, 1.0, () -> c.panelOpacity, v -> c.panelOpacity = (float) v, "%.2f");
+                cycle("Колесико мыши", PortihClient.MIDDLE_NAMES, () -> c.middleAction, v -> c.middleAction = v);
                 action("Сбросить всё", () -> {
                     Config.reset();
                     this.tab = 0;
