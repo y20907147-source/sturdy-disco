@@ -341,7 +341,7 @@ public class ConfigScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        // Та же клавиша, что открывает меню (по умолчанию Right Shift), его закрывает.
+        // Та же клавиша, что открывает меню (по умолчанию Insert), его закрывает.
         if (PortihClient.openMenu != null
                 && PortihClient.openMenu.matches(event)
                 && System.currentTimeMillis() - openedAt > 250L) {
@@ -399,6 +399,7 @@ public class ConfigScreen extends Screen {
         Draw.shadow(g, px, py, pw, ph, 6);
         Draw.roundRect(g, px, py, pw, ph, 6, Theme.border());
         Draw.roundRect(g, px + 1, py + 1, pw - 2, ph - 2, 5, Theme.panelSolid());
+        Draw.hGradient(g, px + 8, py + 1, pw - 16, 1, 0, Theme.accent(), Theme.withAlpha(Theme.accent(), 0f));
 
         // боковая панель
         Draw.roundRect(g, sbX, sbY, SB_W, sbH, 5, Theme.sidebar());
@@ -423,20 +424,28 @@ public class ConfigScreen extends Screen {
 
         // заголовок вкладки
         g.drawString(this.font, TABS[tab], cx, py + 14, Theme.text(), false);
-        g.fill(cx + this.font.width(TABS[tab]) + 8, py + 18, cx + cw, py + 19, Theme.withAlpha(Theme.border() & 0xFFFFFF, 0.9f));
+        int lineX = cx + this.font.width(TABS[tab]) + 8;
+        Draw.hGradient(g, lineX, py + 18, cx + cw - lineX, 1, 0, Theme.accent(), Theme.withAlpha(Theme.accent(), 0f));
 
         for (Row r : rows) drawRow(g, r, mouseX, mouseY);
 
         // низ
         String n = note();
         if (!n.isEmpty()) g.drawString(this.font, n, cx, py + ph - 24, Theme.subText(), false);
-        g.drawString(this.font, "Esc / Right Shift - закрыть   ПКМ - назад по списку",
+        String openKey = PortihClient.openMenu != null
+                ? PortihClient.openMenu.getTranslatedKeyMessage().getString() : "Insert";
+        g.drawString(this.font, "Esc / " + openKey + " - закрыть   ПКМ - назад по списку",
                 cx, py + ph - 13, Theme.muted(), false);
     }
 
     private void drawRow(GuiGraphics g, Row r, int mx, int my) {
         boolean hover = mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h;
         Draw.roundRect(g, r.x, r.y, r.w, r.h, 4, hover ? Theme.cardHover() : Theme.card());
+        boolean isOn = r.type == TOGGLE && r.getB.getAsBoolean();
+        if (isOn || hover) {
+            Draw.roundRect(g, r.x, r.y + 4, 2, Math.max(2, r.h - 8), 1,
+                    isOn ? Theme.accent() : Theme.withAlpha(Theme.accent(), 0.5f));
+        }
 
         int ty = r.type == SLIDER ? r.y + 3 : r.y + (r.h - 8) / 2;
         g.drawString(this.font, r.label, r.x + 8, ty, hover ? Theme.accent() : Theme.text(), false);
@@ -482,4 +491,17 @@ public class ConfigScreen extends Screen {
                 Draw.roundRect(g, chipX, r.y + (r.h - 12) / 2, chipW, 12, 4, Theme.chip());
                 g.drawString(this.font, s, chipX + 5, r.y + (r.h - 8) / 2, Theme.accent(), false);
             }
-            case
+            case ACTION -> {
+                String s = ">";
+                g.drawString(this.font, s, r.x + r.w - 10 - this.font.width(s) / 2, ty, Theme.accent(), false);
+            }
+            default -> { }
+        }
+    }
+
+    @Override
+    public void removed() {
+        Config.get().lastTab = tab;
+        Config.save();
+    }
+}
