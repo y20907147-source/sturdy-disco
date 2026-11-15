@@ -16,6 +16,7 @@ public class PortihClient implements ClientModInitializer {
     public static KeyMapping openMenu;
     public static KeyMapping toggleHud;
     public static KeyMapping toggleSpin;
+    public static KeyMapping autoSwap;
 
     @Override
     public void onInitializeClient() {
@@ -30,6 +31,9 @@ public class PortihClient implements ClientModInitializer {
                 "key.portihmod.toggle_hud", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
         toggleSpin = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.portihmod.toggle_spin", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_UNKNOWN, category));
+
+        autoSwap = KeyBindingHelper.registerKeyBinding(new KeyMapping(
+                "key.portihmod.autoswap", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, category));
 
         HudRenderCallback.EVENT.register(Hud::render);
         ClientReceiveMessageEvents.GAME.register(EventAlert::onMessage);
@@ -46,6 +50,9 @@ public class PortihClient implements ClientModInitializer {
                 Config.get().spin = !Config.get().spin;
                 Config.save();
             }
+            while (autoSwap.consumeClick()) AutoSwap.press(client);
+            AutoSwap.tick(client);
+            Locator.tick(client);
             HitTracker.update(client);
             VictorySound.tick(client);
         });
