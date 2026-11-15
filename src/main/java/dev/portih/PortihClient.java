@@ -7,6 +7,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.KeyMapping;
+import dev.portih.basefinder.BaseFinder;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
@@ -44,6 +45,8 @@ public class PortihClient implements ClientModInitializer {
         middleKey = KeyBindingHelper.registerKeyBinding(new KeyMapping(
                 "key.portihmod.middle", InputConstants.Type.MOUSE, GLFW.GLFW_MOUSE_BUTTON_MIDDLE, category));
 
+        BaseFinder.init(category);   // поиск построек: клавиши B / N, события чанков
+
         HudRenderCallback.EVENT.register(Hud::render);
         ClientReceiveMessageEvents.GAME.register(EventAlert::onMessage);
 
@@ -65,6 +68,7 @@ public class PortihClient implements ClientModInitializer {
             Locator.tick(client);
             HitTracker.update(client);
             VictorySound.tick(client);
+            BaseFinder.tick(client);
         });
     }
 
