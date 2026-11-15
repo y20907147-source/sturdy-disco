@@ -19,6 +19,15 @@ public final class Theme {
         return (a << 24) | (rgb & 0xFFFFFF);
     }
 
+    public static int danger() {
+        return 0xFFFF5A4F;
+    }
+
+    /** Фон пустой части полоски (мягкий, без рамок). */
+    public static int track() {
+        return Config.get().lightTheme ? 0x1E000000 : 0x24FFFFFF;
+    }
+
     /** Полупрозрачная панель худа. */
     public static int panel() {
         return withAlpha(Config.get().lightTheme ? 0xF1F5F9 : 0x0F131A, Config.get().panelOpacity);
