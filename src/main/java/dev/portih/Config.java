@@ -42,6 +42,15 @@ public class Config {
     public int swapB = 1;
     public boolean autoTotem = false;     // сам ставит тотем в левую руку, когда она пуста
 
+        // ---- ESP ----
+    public boolean esp = true;            // рамки игроков сквозь стены
+    public boolean espInfo = true;        // ник + здоровье
+    public float espRange = 96f;
+    public boolean targetEsp = true;      // инфо о цели рядом с рамкой
+    public boolean targetArmor = true;
+    public boolean targetApples = true;
+    public boolean targetTotems = true;
+    
     // ---- таргет худ ----
     public boolean targetHud = true;
     public float targetX = 0.50f;
