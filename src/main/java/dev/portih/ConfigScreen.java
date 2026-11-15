@@ -19,12 +19,13 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
 public class ConfigScreen extends Screen {
-    private static final String[] TABS = {"HUD", "Меч", "Эффекты", "Звук", "Ивенты", "Бой", "ESP", "Вид"};
+    private static final String[] TABS = {"HUD", "Меч", "Эффекты", "Звук", "Ивенты", "Бой", "ESP", "Базы", "Вид"};
     private static final String[] AXES = {"Волчок (Y)", "Колесо (Z)", "Кувырок (X)"};
     private static final String[] SPIN_MODES = {"По удару", "Постоянно"};
     private static final String[] TRIGGERS = {"При попадании", "При клике"};
     private static final String[] ESP_STYLES = {"Рамка", "Уголки"};
     private static final String[] TRACERS = {"Выкл", "Только цель", "Все игроки"};
+    private static final String[] BF_TRACERS = {"Выкл", "К скоплениям", "Ко всем рамкам"};
     private static final String[] QUALITY = {"Макс. FPS", "Баланс", "Красиво"};
     private static final String[] QUALITY_HINT = {
             "Без теней и свечения: максимум FPS.",
@@ -229,6 +230,30 @@ public class ConfigScreen extends Screen {
                 toggle("Цифры урона", () -> c.damagePops, v -> c.damagePops = v)
                         .desc = "Всплывающие -N над целью.";
                 toggle("Крестик при попадании", () -> c.hitMarker, v -> c.hitMarker = v);
+            }
+            case 7 -> {
+                dev.portih.basefinder.BaseFinderConfig b = dev.portih.basefinder.BaseFinderConfig.get();
+                toggle("Поиск построек", () -> b.enabled, v -> {
+                    b.enabled = v;
+                    if (v) dev.portih.basefinder.BaseFinder.rebuildLookup();
+                    dev.portih.basefinder.BaseFinderConfig.save();
+                }).desc = "Подсветка контейнеров и построек сквозь стены. Клавиша B.";
+                cycle("Трейсеры", BF_TRACERS, () -> b.tracers, v -> b.tracers = v)
+                        .desc = "Линии от прицела к скоплениям блоков.";
+                toggle("Трейсер от прицела", () -> b.tracerFromCrosshair, v -> b.tracerFromCrosshair = v);
+                slider("Дальность рамок", 16, 256, () -> b.range, v -> b.range = (int) Math.round(v), "%.0f");
+                slider("Макс. рамок", 20, 1000, () -> b.maxBoxes, v -> b.maxBoxes = (int) Math.round(v), "%.0f")
+                        .desc = "Больше рамок - ниже FPS.";
+                slider("Порог скопления", 1, 100, () -> b.clusterThreshold,
+                        v -> b.clusterThreshold = (int) Math.round(v), "%.0f")
+                        .desc = "Блоков в одном чанке для отчёта (клавиша N).";
+                for (dev.portih.basefinder.BaseFinderConfig.Group grp : b.groups) {
+                    toggle(grp.name, () -> grp.enabled, v -> {
+                        grp.enabled = v;
+                        dev.portih.basefinder.BaseFinder.rebuildLookup();
+                    }).desc = "Цвет и список блоков - в config/portihmod-basefinder.json";
+                }
+                action("Отчёт в чат", () -> dev.portih.basefinder.BaseFinder.report(this.minecraft));
             }
             default -> {
                 toggle("Светлая тема", () -> c.lightTheme, v -> c.lightTheme = v);
@@ -609,5 +634,6 @@ public class ConfigScreen extends Screen {
     public void removed() {
         Config.get().lastTab = tab;
         Config.save();
+        dev.portih.basefinder.BaseFinderConfig.save();
     }
 }
