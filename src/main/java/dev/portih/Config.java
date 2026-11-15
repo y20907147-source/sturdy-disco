@@ -25,6 +25,14 @@ public class Config {
     public boolean hudEnabled = true;
     public boolean winLose = true;       // индикатор W/L в таргет худе
 
+    // ---- действия цели и оповещения ----
+    public boolean actionFeed = true;    // лента: съел яблоко, кинул зелье...
+    public boolean eventAlerts = true;   // плашка "опасность + название ивента"
+    public boolean eventSound = true;
+    public float eventDuration = 6.0f;
+    /** Слова через запятую: если сообщение сервера содержит одно из них, показываем оповещение. */
+    public String eventKeywords = "ивент,эвент,event,метеорит,аирдроп,airdrop";
+
     // ---- таргет худ ----
     public boolean targetHud = true;
     public float targetX = 0.50f;
@@ -114,6 +122,7 @@ public class Config {
         }
         if (instance.victoryCustom == null) instance.victoryCustom = "";
         if (instance.hitCustom == null) instance.hitCustom = "";
+        if (instance.eventKeywords == null) instance.eventKeywords = "";
         save();
     }
 
