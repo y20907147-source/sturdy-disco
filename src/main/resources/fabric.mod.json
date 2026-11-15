@@ -3,7 +3,7 @@
   "id": "portihmod",
   "version": "${version}",
   "name": "PortihMod",
-  "description": "Target HUD, keystrokes + CPS, small spinning sword, victory sounds, themed menu.",
+  "description": "Target HUD, keystrokes + CPS, ESP with spinning target marker, small spinning sword, victory sounds, themed menu.",
   "authors": ["Portih"],
   "license": "MIT",
   "environment": "client",
