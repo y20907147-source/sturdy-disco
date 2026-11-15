@@ -22,6 +22,7 @@ public final class BaseFinderConfig {
         public String name;
         public boolean enabled = true;
         public int color;                 // 0xRRGGBB
+        public boolean priority;          // показывать эту группу стрелкой-указателем
         public List<String> blocks = new ArrayList<>();
 
         public Group() {}
@@ -39,6 +40,8 @@ public final class BaseFinderConfig {
     public int maxBoxes = 200;               // потолок рамок за кадр (FPS)
     public int tracers = 1;                  // 0 = выкл, 1 = к скоплениям, 2 = ко всем рамкам
     public boolean tracerFromCrosshair = true; // true: от прицела, false: от низа экрана
+    public boolean compass = true;           // указатель направления на ближайшие цели
+    public int compassCount = 3;             // сколько целей показывать в указателе (1..5)
     public int clusterThreshold = 10;        // "крупное скопление" = больше N блоков в чанке
     public int maxPerChunk = 4096;           // защита памяти (например, огромные каменные стены)
     public int rescanSeconds = 15;           // как часто перепроверять чанки (0 = только при загрузке)
@@ -62,6 +65,9 @@ public final class BaseFinderConfig {
                 "minecraft:blue_shulker_box", "minecraft:brown_shulker_box", "minecraft:green_shulker_box",
                 "minecraft:red_shulker_box", "minecraft:black_shulker_box"));
         g.add(new Group("Эндер-сундуки", 0x00E5C8, "minecraft:ender_chest"));
+        g.get(0).priority = true;
+        g.get(1).priority = true;
+        g.get(2).priority = true;
         g.add(new Group("Печи и станки", 0xFF6B3D,
                 "minecraft:furnace", "minecraft:blast_furnace", "minecraft:smoker",
                 "minecraft:crafting_table", "minecraft:anvil", "minecraft:enchanting_table",
@@ -101,6 +107,7 @@ public final class BaseFinderConfig {
         c.scanRadiusChunks = clamp(c.scanRadiusChunks, 2, 32);
         c.maxBoxes = clamp(c.maxBoxes, 20, 1500);
         c.tracers = clamp(c.tracers, 0, 2);
+        c.compassCount = clamp(c.compassCount, 1, 5);
         c.clusterThreshold = clamp(c.clusterThreshold, 1, 4096);
         c.maxPerChunk = clamp(c.maxPerChunk, 64, 65536);
         c.rescanSeconds = clamp(c.rescanSeconds, 0, 600);
@@ -120,3 +127,4 @@ public final class BaseFinderConfig {
         return Math.max(lo, Math.min(hi, v));
     }
 }
+
