@@ -67,6 +67,7 @@ public final class Hud {
 
         Config c = Config.get();
         Effects.renderOverlay(g, mc, c);
+        Effects.renderHitMarker(g, mc, c);
         EventAlert.render(g, mc, c);
         Locator.render(g, mc, c);
         Esp.render(g, mc, c, delta);
@@ -285,8 +286,19 @@ public final class Hud {
     // ------------------------------------------------------------ таргет худ
 
     private static int hpColor(float ratio) {
-        if (ratio > 0.5f) return Draw.lerpColor(0xFFFFC857, 0xFF4ADE80, (ratio - 0.5f) * 2f);
-        return Draw.lerpColor(0xFFFF6B6B, 0xFFFFC857, ratio * 2f);
+        return Draw.hpColor(ratio);
+    }
+
+    // кэш строки здоровья: String.format в каждом кадре дорогой
+    private static float hpTextFor = -1f;
+    private static String hpTextCache = "";
+
+    private static String hpText(float hp) {
+        if (hp != hpTextFor) {
+            hpTextFor = hp;
+            hpTextCache = String.format(Locale.ROOT, "%.1f", hp);
+        }
+        return hpTextCache;
     }
 
     private static void drawTarget(GuiGraphics g, Minecraft mc, Config c, boolean edit) {
@@ -346,14 +358,20 @@ public final class Hud {
         int hs = 30;
         int hx = x + 10;
         int hy = y + (h - hs) / 2;
-        Draw.roundRect(g, hx - 2, hy - 2, hs + 4, hs + 4, 8, Draw.fade(Theme.accent(), 0.85f * vis));
+        float hitPulse = 0f;
+        if (real && HitTracker.lastHitEntity == shown) {
+            long age = now - HitTracker.lastHitMs;
+            if (age < 300L) hitPulse = 1f - age / 300f;
+        }
+        int headCol = Draw.lerpColor(Theme.accent(), 0xFFFFFFFF, hitPulse * 0.8f);
+        Draw.roundRect(g, hx - 2, hy - 2, hs + 4, hs + 4, 8, Draw.fade(headCol, 0.85f * vis));
         drawHead(g, mc, real ? shown : mc.player, hx, hy, hs);
 
         int tx = hx + hs + 12;
         if (name.length() > 13) name = name.substring(0, 13);
         g.drawString(mc.font, name, tx, y + 10, Draw.fade(Theme.text(), vis), false);
 
-        String hpText = String.format(Locale.ROOT, "%.1f", hp);
+        String hpText = hpText(hp);
         int hpX = x + w - 12 - mc.font.width(hpText);
         g.drawString(mc.font, hpText, hpX, y + 10, Draw.fade(Theme.subText(), vis), false);
 
@@ -377,6 +395,15 @@ public final class Hud {
         if (gw > 1) Draw.pill(g, bx, by, Math.max(bh, gw), bh, Draw.fade(0x40FFFFFF, vis));
         int fw = (int) (bw * barRatio);
         if (fw > 1) Draw.pill(g, bx, by, Math.max(bh, fw), bh, Draw.fade(hpColor(barRatio) | 0xFF000000, vis));
+
+        // золотое поглощение тонкой линией над полоской
+        if (real) {
+            float abs = shown.getAbsorptionAmount();
+            if (abs > 0.05f) {
+                int aw = Math.max(3, (int) (bw * Draw.clamp01(abs / max)));
+                Draw.pill(g, bx, by - 4, aw, 2, Draw.fade(0xFFFACC15, vis));
+            }
+        }
 
         // действия цели
         ActionFeed.render(g, mc, x + w / 2, y + h + 7, vis, edit && !real);
