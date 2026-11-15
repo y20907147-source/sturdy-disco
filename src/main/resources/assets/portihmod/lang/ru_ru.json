@@ -4,5 +4,7 @@
   "key.portihmod.toggle_hud": "Вкл/выкл HUD",
   "key.portihmod.autoswap": "Автосвап",
   "key.portihmod.toggle_spin": "Вкл/выкл кручение меча",
-  "key.portihmod.middle": "Колесико мыши (действие)"
+  "key.portihmod.middle": "Колесико мыши (действие)",
+  "key.portihmod.bf_toggle": "Поиск построек: вкл/выкл",
+  "key.portihmod.bf_report": "Поиск построек: отчёт в чат"
 }
