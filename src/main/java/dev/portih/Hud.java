@@ -41,7 +41,7 @@ public final class Hud {
     private static LivingEntity shown;
     private static long shownUntil;
 
-    // перетаскивание: 0 = нет, 1 = кейстроки, 2 = таргет худ
+    // перетаскивание: 0 = нет, 1 = кейстроки, 2 = таргет худ, 10+ = панели (Panels)
     private static int dragging = 0;
     private static int grabDX;
     private static int grabDY;
@@ -76,6 +76,12 @@ public final class Hud {
         if (c.targetHud) {
             drawTarget(g, mc, c, edit);
             if (edit) outline(g, targetBounds(mc, c), dragging == 2);
+        }
+        Panels.render(g, mc, c, edit);
+        if (edit) {
+            for (int i = 0; i < Panels.COUNT; i++) {
+                if (Panels.enabled(c, i)) outline(g, Panels.bounds(mc, c, i), dragging == 10 + i);
+            }
         }
         if (chat) {
             int sw = mc.getWindow().getGuiScaledWidth();
@@ -160,7 +166,16 @@ public final class Hud {
         if (pressed && !wasPressed) {
             int[] tb = targetBounds(mc, c);
             int[] kb = keysBounds(mc, c);
-            if (c.targetHud && inside(mx, my, tb)) {
+            int panel = -1;
+            for (int i = Panels.COUNT - 1; i >= 0 && panel < 0; i--) {
+                if (Panels.enabled(c, i) && inside(mx, my, Panels.bounds(mc, c, i))) panel = i;
+            }
+            if (panel >= 0) {
+                int[] pb = Panels.bounds(mc, c, panel);
+                dragging = 10 + panel;
+                grabDX = (int) (mx - pb[0]);
+                grabDY = (int) (my - pb[1]);
+            } else if (c.targetHud && inside(mx, my, tb)) {
                 dragging = 2;
                 grabDX = (int) (mx - tb[0]);
                 grabDY = (int) (my - tb[1]);
@@ -172,7 +187,13 @@ public final class Hud {
         }
 
         if (dragging != 0 && pressed) {
-            if (dragging == 1) {
+            if (dragging >= 10) {
+                int pi = dragging - 10;
+                int[] b = Panels.bounds(mc, c, pi);
+                Panels.setPos(c, pi,
+                        clamp((float) ((mx - grabDX) / sw), 0f, Math.max(0f, (sw - b[2]) / (float) sw)),
+                        clamp((float) ((my - grabDY) / sh), 0f, Math.max(0f, (sh - b[3]) / (float) sh)));
+            } else if (dragging == 1) {
                 int[] b = keysBounds(mc, c);
                 c.keysX = clamp((float) ((mx - grabDX) / sw), 0f, Math.max(0f, (sw - b[2]) / (float) sw));
                 c.keysY = clamp((float) ((my - grabDY) / sh), 0f, Math.max(0f, (sh - b[3]) / (float) sh));
