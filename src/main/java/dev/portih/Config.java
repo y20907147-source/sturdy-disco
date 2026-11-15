@@ -42,6 +42,9 @@ public class Config {
     public int swapB = 1;
     public boolean autoTotem = false;     // сам ставит тотем в левую руку, когда она пуста
 
+    // ---- бинды ----
+    public int middleAction = 1;          // нажатие колесика: индекс в PortihClient.MIDDLE_NAMES
+
     // ---- ESP ----
     public boolean esp = true;            // рамки игроков сквозь стены
     public boolean espInfo = true;        // ник + здоровье
