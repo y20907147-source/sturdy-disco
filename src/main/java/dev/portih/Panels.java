@@ -118,17 +118,20 @@ public final class Panels {
         // не даём панели уехать за экран, если она выросла
         b[0] = Math.max(0, Math.min(b[0], sw - w));
         b[1] = Math.max(0, Math.min(b[1], sh - h));
-        Draw.shadow(g, b[0], b[1], w, h, RADIUS);
-        Draw.roundRect(g, b[0], b[1], w, h, RADIUS, Theme.panel());
-        Draw.border(g, b[0], b[1], w, h, RADIUS, Theme.withAlpha(Theme.border(), 0.9f));
+        Draw.panel(g, b[0], b[1], w, h, RADIUS, Theme.panel(), Theme.withAlpha(Theme.border(), 0.9f));
         return b;
     }
 
     private static void header(GuiGraphics g, Minecraft mc, int[] b, int w, String title, String right) {
         g.drawString(mc.font, title, b[0] + PAD, b[1] + 4, Theme.text(), false);
         if (right != null) {
-            g.drawString(mc.font, right, b[0] + w - PAD - mc.font.width(right), b[1] + 4, Theme.subText(), false);
+            int cw = mc.font.width(right) + 8;
+            int chipX = b[0] + w - PAD - cw;
+            Draw.roundRect(g, chipX, b[1] + 3, cw, 11, 4, Theme.chip());
+            g.drawString(mc.font, right, chipX + 4, b[1] + 4, Theme.accent(), false);
         }
+        Draw.hGradient(g, b[0] + PAD, b[1] + HEADER_H - 2, w - PAD * 2, 1, 0,
+                Theme.accent(), Theme.withAlpha(Theme.accent(), 0f));
     }
 
     // ------------------------------------------------------- инфо-плашка
@@ -148,6 +151,10 @@ public final class Panels {
         int x = b[0] + PAD;
         int y = b[1] + 5;
         for (int k = 0; k < parts.length; k++) {
+            if (k == 0) {
+                Draw.roundRect(g, x - 3, y - 2, mc.font.width(parts[0]) + 6, 11, 4,
+                        Theme.withAlpha(Theme.accent(), 0.22f));
+            }
             g.drawString(mc.font, parts[k], x, y, k == 0 ? Theme.accent() : Theme.text(), false);
             x += mc.font.width(parts[k]);
             if (k < parts.length - 1) {
@@ -191,15 +198,13 @@ public final class Panels {
 
     private static void drawList(GuiGraphics g, Minecraft mc, Config c, int id, String title, String count,
                                  List<Row> rows, int minW) {
-        int w = Math.max(minW, mc.font.width(title) + mc.font.width(count) + PAD * 3);
+        int w = Math.max(minW, mc.font.width(title) + mc.font.width(count) + PAD * 3 + 8);
         for (Row r : rows) {
             w = Math.max(w, PAD * 2 + 8 + mc.font.width(r.left()) + 12 + mc.font.width(r.right()));
         }
         int h = HEADER_H + rows.size() * ROW_H + 4;
         int[] b = frame(g, mc, c, id, w, h);
         header(g, mc, b, w, title, count);
-        g.fill(b[0] + PAD, b[1] + HEADER_H - 2, b[0] + w - PAD, b[1] + HEADER_H - 1,
-                Theme.withAlpha(Theme.border(), 0.8f));
         int y = b[1] + HEADER_H + 1;
         for (Row r : rows) {
             Draw.roundRect(g, b[0] + PAD, y + 2, 4, 4, 2, r.color());
