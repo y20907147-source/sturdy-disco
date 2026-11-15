@@ -9,7 +9,7 @@ import java.nio.file.Path;
 
 public class Config {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final int CURRENT_VERSION = 2;
+    private static final int CURRENT_VERSION = 3;
     private static Config instance = new Config();
 
     /** Версия формата конфига (для миграции старых настроек). */
@@ -24,6 +24,8 @@ public class Config {
     public float panelOpacity = 0.80f;
     public boolean hudEnabled = true;
     public boolean winLose = true;       // индикатор W/L в таргет худе
+    /** Качество эффектов: 0 = макс. FPS (без теней и свечения), 1 = баланс, 2 = красиво. */
+    public int quality = 1;
 
     // ---- действия цели и оповещения ----
     public boolean actionFeed = true;    // лента: съел яблоко, кинул зелье...
@@ -48,11 +50,22 @@ public class Config {
     // ---- ESP ----
     public boolean esp = true;            // рамки игроков сквозь стены
     public boolean espInfo = true;        // ник + здоровье
+    public int espStyle = 1;              // 0 = полная рамка, 1 = уголки
+    public boolean espFill = true;        // лёгкая заливка внутри рамки
+    public boolean espDistance = true;    // дистанция под рамкой
+    public int espTracers = 1;            // 0 = выкл, 1 = только цель, 2 = все игроки
     public float espRange = 96f;
     public boolean targetEsp = true;      // инфо о цели рядом с рамкой
     public boolean targetArmor = true;
     public boolean targetApples = true;
     public boolean targetTotems = true;
+    public boolean targetMark = true;     // крутящийся квадрат на цели
+    public int markStyle = 0;             // 0 = квадрат, 1 = двойной, 2 = прицел, 3 = 3D вокруг тела
+    public float markSize = 1.0f;
+    public float markSpeed = 1.0f;        // оборотов в секунду
+    public boolean markHealthColor = true;// цвет маркера зависит от здоровья цели
+    public boolean hitMarker = true;      // крестик у прицела при попадании
+    public boolean damagePops = true;     // всплывающие цифры урона
 
     // ---- таргет худ ----
     public boolean targetHud = true;
@@ -144,6 +157,12 @@ public class Config {
         if (instance.victoryCustom == null) instance.victoryCustom = "";
         if (instance.hitCustom == null) instance.hitCustom = "";
         if (instance.eventKeywords == null) instance.eventKeywords = "";
+        instance.quality = Math.max(0, Math.min(2, instance.quality));
+        instance.markStyle = Math.max(0, Math.min(3, instance.markStyle));
+        instance.espStyle = Math.max(0, Math.min(1, instance.espStyle));
+        instance.espTracers = Math.max(0, Math.min(2, instance.espTracers));
+        if (instance.markSize < 0.4f || instance.markSize > 2.5f) instance.markSize = 1.0f;
+        if (instance.markSpeed < 0.1f || instance.markSpeed > 4f) instance.markSpeed = 1.0f;
         save();
     }
 
@@ -154,6 +173,9 @@ public class Config {
             c.spinDuration = 0.60f;
             c.noSwing = true;
             c.noDip = true;
+        }
+        if (c.version < 3) {
+            c.quality = 1;
         }
         c.version = CURRENT_VERSION;
     }
