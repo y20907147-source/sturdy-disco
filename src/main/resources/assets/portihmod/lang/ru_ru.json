@@ -3,5 +3,6 @@
   "key.portihmod.menu": "Открыть меню",
   "key.portihmod.toggle_hud": "Вкл/выкл HUD",
   "key.portihmod.autoswap": "Автосвап",
-  "key.portihmod.toggle_spin": "Вкл/выкл кручение меча"
+  "key.portihmod.toggle_spin": "Вкл/выкл кручение меча",
+  "key.portihmod.middle": "Колесико мыши (действие)"
 }
