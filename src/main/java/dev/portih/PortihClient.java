@@ -8,6 +8,7 @@ import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.KeyMapping;
 import dev.portih.basefinder.BaseFinder;
+import dev.portih.training.TrainingDummy;
 import net.minecraft.resources.Identifier;
 import org.lwjgl.glfw.GLFW;
 
@@ -46,13 +47,14 @@ public class PortihClient implements ClientModInitializer {
                 "key.portihmod.middle", InputConstants.Type.MOUSE, GLFW.GLFW_MOUSE_BUTTON_MIDDLE, category));
 
         BaseFinder.init(category);   // поиск построек: клавиши B / N, события чанков
+        TrainingDummy.init(category);   // манекен: клавиша M - переставить
 
         HudRenderCallback.EVENT.register(Hud::render);
         ClientReceiveMessageEvents.GAME.register(EventAlert::onMessage);
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (openMenu.consumeClick()) {
-                if (client.screen == null) client.setScreen(new ConfigScreen(null));
+                if (client.screen == null) client.setScreen(new dev.portih.gui.ClickGuiScreen(null));
             }
             while (toggleHud.consumeClick()) {
                 Config.get().hudEnabled = !Config.get().hudEnabled;
@@ -69,6 +71,7 @@ public class PortihClient implements ClientModInitializer {
             HitTracker.update(client);
             VictorySound.tick(client);
             BaseFinder.tick(client);
+            TrainingDummy.tick(client);
         });
     }
 
