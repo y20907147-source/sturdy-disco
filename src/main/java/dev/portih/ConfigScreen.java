@@ -180,6 +180,13 @@ public class ConfigScreen extends Screen {
             case 5 -> {
                 toggle("ESP на невидимок", () -> c.invisEsp, v -> c.invisEsp = v);
                 toggle("Локатор невидимок", () -> c.invisLocator, v -> c.invisLocator = v);
+                toggle("ESP на игроков", () -> c.esp, v -> c.esp = v);
+                toggle("ESP: ник и здоровье", () -> c.espInfo, v -> c.espInfo = v);
+                slider("ESP дальность", 16, 192, () -> c.espRange, v -> c.espRange = (float) v, "%.0f");
+                toggle("Таргет ESP", () -> c.targetEsp, v -> c.targetEsp = v);
+                toggle("Таргет: броня", () -> c.targetArmor, v -> c.targetArmor = v);
+                toggle("Таргет: яблоки", () -> c.targetApples, v -> c.targetApples = v);
+                toggle("Таргет: тотемы", () -> c.targetTotems, v -> c.targetTotems = v);
                 slider("Дальность (блоки)", 16, 128, () -> c.invisRange, v -> c.invisRange = (float) v, "%.0f");
                 toggle("Автосвап", () -> c.autoSwap, v -> c.autoSwap = v);
                 cycle("Автосвап: первый", AutoSwap.NAMES, () -> c.swapA, v -> c.swapA = v);
@@ -251,6 +258,7 @@ public class ConfigScreen extends Screen {
         sbX = px + 10;
         sbY = py + 10;
         sbH = ph - 20;
+
         cx = sbX + SB_W + 16;
         cw = pw - (cx - px) - 14;
         colW = (cw - 8) / 2;
