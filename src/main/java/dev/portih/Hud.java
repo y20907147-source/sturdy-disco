@@ -4,7 +4,9 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.PlayerFaceRenderer;
 import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.EntityHitResult;
@@ -20,8 +22,8 @@ public final class Hud {
     private static final int MOUSE_H = 18;
     private static final int SPACE_H = 12;
     private static final int CPS_H = 14;
-    private static final int TARGET_W = 140;
-    private static final int TARGET_H = 34;
+    private static final int TARGET_W = 156;
+    private static final int TARGET_H = 42;
     private static final int RADIUS = 4;
 
     private static final HashMap<String, Float> ANIM = new HashMap<>();
@@ -269,6 +271,7 @@ public final class Hud {
         float a = anim(id, down);
         int bg = Draw.lerpColor(Theme.keyBg(), Theme.withAlpha(Theme.accent(), 0.92f), a);
         Draw.roundRect(g, x, y, w, h, 3, bg);
+        Draw.border(g, x, y, w, h, 3, Draw.lerpColor(Theme.withAlpha(Theme.border(), 0.7f), Theme.accent(), a));
         center(g, mc.font, label, x + w / 2, y + (h - 8) / 2, Draw.lerpColor(Theme.text(), 0xFFFFFFFF, a));
     }
 
@@ -318,33 +321,56 @@ public final class Hud {
         int w = b[2];
         int h = b[3];
 
-        Draw.shadow(g, x, y, w, h, RADIUS);
-        Draw.roundRect(g, x, y, w, h, RADIUS, Theme.panel());
-        Draw.border(g, x, y, w, h, RADIUS, Theme.withAlpha(Theme.border(), 0.9f));
+        Draw.panel(g, x, y, w, h, RADIUS + 1, Theme.panel(), Theme.withAlpha(Theme.border(), 0.9f));
 
-        if (name.length() > 14) name = name.substring(0, 14);
-        g.drawString(mc.font, name, x + 8, y + 7, Theme.text(), false);
+        // голова игрока в акцентной рамке
+        int hs = 28;
+        int hx = x + 8;
+        int hy = y + (h - hs) / 2;
+        Draw.roundRect(g, hx - 2, hy - 2, hs + 4, hs + 4, 5, Theme.withAlpha(Theme.accent(), 0.9f));
+        drawHead(g, mc, real ? shown : mc.player, hx, hy, hs);
+
+        int tx = hx + hs + 9;
+        if (name.length() > 13) name = name.substring(0, 13);
+        g.drawString(mc.font, name, tx, y + 8, Theme.text(), false);
 
         String hpText = String.format(Locale.ROOT, "%.1f", hp);
         int hpX = x + w - 8 - mc.font.width(hpText);
-        g.drawString(mc.font, hpText, hpX, y + 7, Theme.subText(), false);
+        g.drawString(mc.font, hpText, hpX, y + 8, Theme.subText(), false);
 
         if (c.winLose && mc.player != null) {
             float diff = real ? mc.player.getHealth() - hp : 6f;
             String wl = diff > 0.05f ? "W" : (diff < -0.05f ? "L" : "=");
             int col = diff > 0.05f ? 0xFF22C55E : (diff < -0.05f ? 0xFFEF4444 : Theme.subText());
-            g.drawString(mc.font, wl, hpX - 8 - mc.font.width(wl), y + 7, col, false);
+            int cw = mc.font.width(wl) + 8;
+            int chipX = hpX - 6 - cw;
+            Draw.roundRect(g, chipX, y + 6, cw, 12, 4, Theme.withAlpha(col & 0xFFFFFF, 0.22f));
+            g.drawString(mc.font, wl, chipX + 4, y + 8, col, false);
         }
 
-        int bx = x + 8;
-        int by = y + h - 13;
-        int bw = w - 16;
-        int bh = 6;
+        int bx = tx;
+        int by = y + h - 15;
+        int bw = x + w - 8 - bx;
+        int bh = 7;
         Draw.roundRect(g, bx, by, bw, bh, 3, Theme.withAlpha(0x000000, 0.45f));
         int gw = (int) (bw * ghostRatio);
-        if (gw > 0) Draw.roundRect(g, bx, by, gw, bh, 3, 0x66FFFFFF);
+        if (gw > 1) Draw.hGradient(g, bx, by, gw, bh, 3, 0x55FFFFFF, 0x55FFFFFF);
         int fw = (int) (bw * barRatio);
-        if (fw > 0) Draw.roundRect(g, bx, by, fw, bh, 3, hpColor(barRatio));
+        if (fw > 1) {
+            int col = hpColor(barRatio);
+            Draw.hGradient(g, bx, by, fw, bh, 3, Draw.lerpColor(col, 0xFF000000, 0.35f), col);
+            // блик на полоске
+            g.fill(bx + 3, by + 1, bx + Math.max(3, fw - 3), by + 2, 0x30FFFFFF);
+        }
+    }
+
+    private static void drawHead(GuiGraphics g, Minecraft mc, LivingEntity e, int x, int y, int s) {
+        if (e instanceof AbstractClientPlayer p) {
+            PlayerFaceRenderer.draw(g, p.getSkin(), x, y, s);
+        } else {
+            Draw.roundRect(g, x, y, s, s, 4, Theme.chip());
+            center(g, mc.font, "?", x + s / 2, y + (s - 8) / 2, Theme.subText());
+        }
     }
 
     // ----------------------------------------------------------------- util
