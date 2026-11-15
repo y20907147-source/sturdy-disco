@@ -98,6 +98,10 @@ public class ConfigScreen extends Screen {
                 toggle("Показывать КПС", () -> c.showCps, v -> c.showCps = v);
                 toggle("Прыжок", () -> c.showSpace, v -> c.showSpace = v);
                 toggle("Победа / поражение", () -> c.winLose, v -> c.winLose = v);
+                toggle("Плашка (ник/fps/время)", () -> c.panelInfo, v -> c.panelInfo = v);
+                toggle("Панель зелий", () -> c.panelPotions, v -> c.panelPotions = v);
+                toggle("Панель клавиш", () -> c.panelKeybinds, v -> c.panelKeybinds = v);
+                toggle("Панель кулдаунов", () -> c.panelCooldowns, v -> c.panelCooldowns = v);
                 slider("Таргет X", 0, 100, () -> c.targetX * 100, v -> c.targetX = (float) (v / 100), "%.0f%%");
                 slider("Таргет Y", 0, 100, () -> c.targetY * 100, v -> c.targetY = (float) (v / 100), "%.0f%%");
                 slider("Кейстроки X", 0, 100, () -> c.keysX * 100, v -> c.keysX = (float) (v / 100), "%.0f%%");
@@ -478,17 +482,4 @@ public class ConfigScreen extends Screen {
                 Draw.roundRect(g, chipX, r.y + (r.h - 12) / 2, chipW, 12, 4, Theme.chip());
                 g.drawString(this.font, s, chipX + 5, r.y + (r.h - 8) / 2, Theme.accent(), false);
             }
-            case ACTION -> {
-                String s = ">";
-                g.drawString(this.font, s, r.x + r.w - 10 - this.font.width(s) / 2, ty, Theme.accent(), false);
-            }
-            default -> { }
-        }
-    }
-
-    @Override
-    public void removed() {
-        Config.get().lastTab = tab;
-        Config.save();
-    }
-}
+            case
