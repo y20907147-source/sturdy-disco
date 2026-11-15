@@ -53,9 +53,34 @@ public final class Draw {
         return (na << 24) | (color & 0xFFFFFF);
     }
 
+    /** Цвет здоровья: зелёный -> жёлтый -> красный. */
+    public static int hpColor(float ratio) {
+        if (ratio > 0.5f) return lerpColor(0xFFFFC857, 0xFF4ADE80, (ratio - 0.5f) * 2f);
+        return lerpColor(0xFFFF6B6B, 0xFFFFC857, ratio * 2f);
+    }
+
     // ----------------------------------------------------------------- формы
 
-    /** Скруглённый прямоугольник со сглаженными краями углов. */
+    // профили скруглений считаются один раз на радиус (без sqrt в каждом кадре)
+    private static final int[][] CORNER_INSET = new int[65][];
+    private static final float[][] CORNER_COV = new float[65][];
+
+    private static void profile(int r) {
+        if (CORNER_INSET[r] != null) return;
+        int[] inset = new int[r];
+        float[] cov = new float[r];
+        for (int i = 0; i < r; i++) {
+            double dy = r - i - 0.5;
+            double edge = r - Math.sqrt(Math.max(0.0, (double) r * r - dy * dy));
+            int full = (int) Math.ceil(edge);
+            inset[i] = full;
+            cov[i] = (float) (full - edge);
+        }
+        CORNER_COV[r] = cov;
+        CORNER_INSET[r] = inset;
+    }
+
+    /** Скруглённый прямоугольник со сглаженными краями углов (строки с одинаковым отступом склеиваются). */
     public static void roundRect(GuiGraphics g, int x, int y, int w, int h, int r, int color) {
         if (w <= 0 || h <= 0 || ((color >>> 24) & 0xFF) == 0) return;
         r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
@@ -63,19 +88,31 @@ public final class Draw {
             g.fill(x, y, x + w, y + h, color);
             return;
         }
-        for (int i = 0; i < r; i++) {
-            double dy = r - i - 0.5;
-            double edge = r - Math.sqrt(Math.max(0.0, (double) r * r - dy * dy));
-            int full = (int) Math.ceil(edge);
-            float cov = (float) (full - edge);
-            g.fill(x + full, y + i, x + w - full, y + i + 1, color);
-            g.fill(x + full, y + h - 1 - i, x + w - full, y + h - i, color);
-            if (cov > 0.04f && full > 0) {
-                int c2 = fade(color, cov);
-                g.fill(x + full - 1, y + i, x + full, y + i + 1, c2);
-                g.fill(x + w - full, y + i, x + w - full + 1, y + i + 1, c2);
-                g.fill(x + full - 1, y + h - 1 - i, x + full, y + h - i, c2);
-                g.fill(x + w - full, y + h - 1 - i, x + w - full + 1, y + h - i, c2);
+        if (r > 64) r = 64;
+        profile(r);
+        int[] inset = CORNER_INSET[r];
+        float[] cov = CORNER_COV[r];
+
+        int i = 0;
+        while (i < r) {
+            int full = inset[i];
+            int j = i + 1;
+            while (j < r && inset[j] == full) j++;
+            // основной блок строк [i, j) сверху и снизу одним вызовом
+            g.fill(x + full, y + i, x + w - full, y + j, color);
+            g.fill(x + full, y + h - j, x + w - full, y + h - i, color);
+            i = j;
+        }
+        // сглаживание краёв (только там, где покрытие заметно)
+        for (int k = 0; k < r; k++) {
+            int full = inset[k];
+            float cv = cov[k];
+            if (cv > 0.04f && full > 0) {
+                int c2 = fade(color, cv);
+                g.fill(x + full - 1, y + k, x + full, y + k + 1, c2);
+                g.fill(x + w - full, y + k, x + w - full + 1, y + k + 1, c2);
+                g.fill(x + full - 1, y + h - 1 - k, x + full, y + h - k, c2);
+                g.fill(x + w - full, y + h - 1 - k, x + w - full + 1, y + h - k, c2);
             }
         }
         if (h - 2 * r > 0) g.fill(x, y + r, x + w, y + h - r, color);
@@ -150,10 +187,70 @@ public final class Draw {
         panel(g, x, y, w, h, r, bg, 1f);
     }
 
-    /** Очень лёгкая рассеянная тень. */
+    /** Очень лёгкая рассеянная тень. Слои зависят от режима качества (0 = без тени). */
     public static void shadow(GuiGraphics g, int x, int y, int w, int h, int r, float vis) {
-        for (int k = 5; k >= 1; k--) {
-            roundRect(g, x - k, y - k + 3, w + 2 * k, h + 2 * k, r + k, fade(0x07000000, vis));
+        int layers = Config.get().quality == 0 ? 0 : (Config.get().quality == 1 ? 2 : 4);
+        if (layers == 0 || vis < 0.04f) return;
+        int a = layers == 2 ? 0x0D000000 : 0x08000000;
+        for (int k = layers; k >= 1; k--) {
+            roundRect(g, x - k, y - k + 2, w + 2 * k, h + 2 * k, r + k, fade(a, vis));
         }
+    }
+
+    // ------------------------------------------------------- линии и повороты
+
+    /** Линия между двумя точками: один fill, повёрнутый матрицей (без построения по пикселям). */
+    public static void line(GuiGraphics g, float x1, float y1, float x2, float y2, float thick, int color) {
+        if (((color >>> 24) & 0xFF) == 0) return;
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float len = (float) Math.sqrt(dx * dx + dy * dy);
+        if (len < 0.5f) return;
+        g.pose().pushMatrix();
+        g.pose().translate(x1, y1);
+        g.pose().rotate((float) Math.atan2(dy, dx));
+        float t = thick * 0.5f;
+        g.fill(0, Math.round(-t), Math.round(len), Math.max(Math.round(t), Math.round(-t) + 1), color);
+        g.pose().popMatrix();
+    }
+
+    /** Контур повёрнутого квадрата (4 fill в одной матрице). half = половина стороны. */
+    public static void squareOutline(GuiGraphics g, float cx, float cy, float half, float angleRad,
+                                     float thick, int color) {
+        if (half < 2f || ((color >>> 24) & 0xFF) == 0) return;
+        int h = Math.round(half);
+        int t = Math.max(1, Math.round(thick));
+        g.pose().pushMatrix();
+        g.pose().translate(cx, cy);
+        g.pose().rotate(angleRad);
+        g.fill(-h, -h, h, -h + t, color);
+        g.fill(-h, h - t, h, h, color);
+        g.fill(-h, -h + t, -h + t, h - t, color);
+        g.fill(h - t, -h + t, h, h - t, color);
+        g.pose().popMatrix();
+    }
+
+    /** Заливка повёрнутого квадрата. */
+    public static void squareFill(GuiGraphics g, float cx, float cy, float half, float angleRad, int color) {
+        if (half < 1f || ((color >>> 24) & 0xFF) == 0) return;
+        int h = Math.round(half);
+        g.pose().pushMatrix();
+        g.pose().translate(cx, cy);
+        g.pose().rotate(angleRad);
+        g.fill(-h, -h, h, h, color);
+        g.pose().popMatrix();
+    }
+
+    /** Угловые скобки (уголки) прямоугольника. */
+    public static void corners(GuiGraphics g, int x0, int y0, int x1, int y1, int len, int t, int color) {
+        len = Math.max(2, Math.min(len, Math.min(x1 - x0, y1 - y0) / 2));
+        g.fill(x0, y0, x0 + len, y0 + t, color);
+        g.fill(x0, y0, x0 + t, y0 + len, color);
+        g.fill(x1 - len, y0, x1, y0 + t, color);
+        g.fill(x1 - t, y0, x1, y0 + len, color);
+        g.fill(x0, y1 - t, x0 + len, y1, color);
+        g.fill(x0, y1 - len, x0 + t, y1, color);
+        g.fill(x1 - len, y1 - t, x1, y1, color);
+        g.fill(x1 - t, y1 - len, x1, y1, color);
     }
 }
