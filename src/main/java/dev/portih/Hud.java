@@ -69,6 +69,7 @@ public final class Hud {
         Effects.renderOverlay(g, mc, c);
         EventAlert.render(g, mc, c);
         Locator.render(g, mc, c);
+        Esp.render(g, mc, c, delta);
         if (!c.hudEnabled) return;
 
         pollClicks(mc);
