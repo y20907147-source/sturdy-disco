@@ -71,6 +71,7 @@ public final class Hud {
         EventAlert.render(g, mc, c);
         Locator.render(g, mc, c);
         Esp.render(g, mc, c, delta);
+        dev.portih.basefinder.BaseFinderRender.render(g, mc, delta);
         if (!c.hudEnabled) return;
 
         pollClicks(mc);
