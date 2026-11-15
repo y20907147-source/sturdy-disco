@@ -13,12 +13,13 @@ import java.util.Set;
 /** Невидимки: подсветка сквозь стены (ESP) и локатор-стрелки вокруг прицела. */
 public final class Locator {
     private static final Set<Integer> GLOWING = new HashSet<>();
+    private static final Set<Integer> NOW = new HashSet<>();   // переиспользуется каждый тик
 
     private Locator() {}
 
     private static boolean valid(Minecraft mc, AbstractClientPlayer p, Config c) {
         if (p == mc.player || !p.isAlive() || !p.isInvisible() || p.isSpectator()) return false;
-        return mc.player.distanceTo(p) <= c.invisRange;
+        return mc.player.distanceToSqr(p) <= (double) c.invisRange * c.invisRange;
     }
 
     /** Каждый тик: включаем подсветку на невидимках и снимаем с остальных. */
@@ -28,24 +29,28 @@ public final class Locator {
             GLOWING.clear();
             return;
         }
-        Set<Integer> now = new HashSet<>();
+        if (!c.invisEsp && GLOWING.isEmpty()) return;   // нечего делать
+
+        NOW.clear();
         if (c.invisEsp) {
             for (AbstractClientPlayer p : mc.level.players()) {
                 if (valid(mc, p, c)) {
                     p.setGlowingTag(true);
-                    now.add(p.getId());
+                    NOW.add(p.getId());
                 }
             }
         }
-        for (Iterator<Integer> it = GLOWING.iterator(); it.hasNext(); ) {
-            int id = it.next();
-            if (!now.contains(id)) {
-                Entity e = mc.level.getEntity(id);
-                if (e != null) e.setGlowingTag(false);
-                it.remove();
+        if (!GLOWING.isEmpty()) {
+            for (Iterator<Integer> it = GLOWING.iterator(); it.hasNext(); ) {
+                int id = it.next();
+                if (!NOW.contains(id)) {
+                    Entity e = mc.level.getEntity(id);
+                    if (e != null) e.setGlowingTag(false);
+                    it.remove();
+                }
             }
         }
-        GLOWING.addAll(now);
+        GLOWING.addAll(NOW);
     }
 
     /** Стрелки-точки вокруг прицела: куда смотреть, чтобы найти невидимку. */
