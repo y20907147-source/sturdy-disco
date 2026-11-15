@@ -1,397 +1,266 @@
 package dev.portih;
 
-import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.PlayerFaceRenderer;
-import net.minecraft.client.gui.screens.ChatScreen;
-import net.minecraft.client.player.AbstractClientPlayer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.phys.EntityHitResult;
-import org.lwjgl.glfw.GLFW;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.effect.MobEffectInstance;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 
-import java.util.ArrayDeque;
-import java.util.HashMap;
-import java.util.Locale;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
-public final class Hud {
-    private static final int K = 24;
-    private static final int GAP = 4;
-    private static final int MOUSE_H = 20;
-    private static final int SPACE_H = 14;
-    private static final int CPS_H = 16;
-    private static final int TARGET_W = 172;
-    private static final int TARGET_H = 48;
-    private static final int RADIUS = 12;
-    private static final int KEY_R = 9;
+/** Панели как в читклиентах: инфо-плашка, Potions, Keybinds, Cooldowns. Все двигаются мышью. */
+public final class Panels {
+    public static final int INFO = 0;
+    public static final int POTIONS = 1;
+    public static final int KEYBINDS = 2;
+    public static final int COOLDOWNS = 3;
+    public static final int COUNT = 4;
 
-    private static final HashMap<String, Float> ANIM = new HashMap<>();
+    private static final int RADIUS = 11;
+    private static final int HEADER_H = 22;
+    private static final int ROW_H = 14;
+    private static final int PAD = 10;
+    private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm");
+
+    private static final int[] W = new int[COUNT];
+    private static final int[] H = new int[COUNT];
+
+    private static final ItemStack[] CD_ITEMS = {
+            new ItemStack(Items.ENDER_PEARL),
+            new ItemStack(Items.CHORUS_FRUIT),
+            new ItemStack(Items.GOLDEN_APPLE),
+            new ItemStack(Items.ENCHANTED_GOLDEN_APPLE),
+            new ItemStack(Items.SHIELD),
+            new ItemStack(Items.WIND_CHARGE),
+            new ItemStack(Items.TRIDENT),
+            new ItemStack(Items.MACE)
+    };
+
     private static long lastNs;
-    private static float dt = 0.016f;
+    private static float fps = 60f;
 
-    // плавная полоска здоровья цели
-    private static LivingEntity animFor;
-    private static float barRatio = 1f;
-    private static float ghostRatio = 1f;
+    private Panels() {}
 
-    private static final ArrayDeque<Long> LEFT = new ArrayDeque<>();
-    private static final ArrayDeque<Long> RIGHT = new ArrayDeque<>();
-    private static boolean wasLeft;
-    private static boolean wasRight;
+    // ------------------------------------------------------------ положение
 
-    private static LivingEntity shown;
-    private static long shownUntil;
-    private static float targetVis = 0f;
-    private static long feedSeen = 0L;
+    public static boolean enabled(Config c, int i) {
+        return switch (i) {
+            case INFO -> c.panelInfo;
+            case POTIONS -> c.panelPotions;
+            case KEYBINDS -> c.panelKeybinds;
+            default -> c.panelCooldowns;
+        };
+    }
 
-    // перетаскивание: 0 = нет, 1 = кейстроки, 2 = таргет худ, 10+ = панели (Panels)
-    private static int dragging = 0;
-    private static int grabDX;
-    private static int grabDY;
-    private static boolean wasPressed;
+    public static float getX(Config c, int i) {
+        return switch (i) {
+            case INFO -> c.infoX;
+            case POTIONS -> c.potionsX;
+            case KEYBINDS -> c.keybindsX;
+            default -> c.cooldownsX;
+        };
+    }
 
-    private Hud() {}
+    public static float getY(Config c, int i) {
+        return switch (i) {
+            case INFO -> c.infoY;
+            case POTIONS -> c.potionsY;
+            case KEYBINDS -> c.keybindsY;
+            default -> c.cooldownsY;
+        };
+    }
 
-    public static void render(GuiGraphics g, DeltaTracker delta) {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.player == null || mc.level == null) return;
+    public static void setPos(Config c, int i, float x, float y) {
+        switch (i) {
+            case INFO -> { c.infoX = x; c.infoY = y; }
+            case POTIONS -> { c.potionsX = x; c.potionsY = y; }
+            case KEYBINDS -> { c.keybindsX = x; c.keybindsY = y; }
+            default -> { c.cooldownsX = x; c.cooldownsY = y; }
+        }
+    }
 
+    /** {x, y, w, h} панели по размеру, посчитанному в последнем кадре. */
+    public static int[] bounds(Minecraft mc, Config c, int i) {
+        int sw = mc.getWindow().getGuiScaledWidth();
+        int sh = mc.getWindow().getGuiScaledHeight();
+        int w = Math.max(40, W[i]);
+        int h = Math.max(HEADER_H, H[i]);
+        return new int[]{(int) (getX(c, i) * sw), (int) (getY(c, i) * sh), w, h};
+    }
+
+    // ------------------------------------------------------------- рендер
+
+    public static void render(GuiGraphics g, Minecraft mc, Config c, boolean edit) {
         long ns = System.nanoTime();
-        dt = lastNs == 0L ? 0.016f : Math.min(0.1f, (ns - lastNs) / 1_000_000_000f);
+        if (lastNs != 0L) {
+            float d = Math.max(0.0001f, (ns - lastNs) / 1_000_000_000f);
+            fps += (1f / d - fps) * 0.05f;
+        }
         lastNs = ns;
 
-        HitTracker.update(mc);
-        if (mc.options.hideGui) return;
-
-        Config c = Config.get();
-        Effects.renderOverlay(g, mc, c);
-        EventAlert.render(g, mc, c);
-        if (!c.hudEnabled) return;
-
-        pollClicks(mc);
-        boolean chat = mc.screen instanceof ChatScreen;
-        boolean edit = chat || mc.screen instanceof HudEditorScreen;
-        updateDrag(mc, c, edit);
-
-        if (c.keystrokes) {
-            drawKeystrokes(g, mc, c);
-            if (edit) outline(g, keysBounds(mc, c), dragging == 1);
-        }
-        if (c.targetHud) {
-            drawTarget(g, mc, c, edit);
-            if (edit) outline(g, targetBounds(mc, c), dragging == 2);
-        }
-        Panels.render(g, mc, c, edit);
-        if (edit) {
-            for (int i = 0; i < Panels.COUNT; i++) {
-                if (Panels.enabled(c, i)) outline(g, Panels.bounds(mc, c, i), dragging == 10 + i);
-            }
-        }
-        if (chat) {
-            int sw = mc.getWindow().getGuiScaledWidth();
-            String hint = "Перетаскивай панели мышью";
-            int tw = mc.font.width(hint);
-            g.drawString(mc.font, hint, sw / 2 - tw / 2, 6, Theme.subText(), false);
-        }
+        if (c.panelInfo) drawInfo(g, mc, c);
+        if (c.panelPotions) drawPotions(g, mc, c, edit);
+        if (c.panelKeybinds) drawKeybinds(g, mc, c);
+        if (c.panelCooldowns) drawCooldowns(g, mc, c, edit);
     }
 
-    // ------------------------------------------------------------------ CPS
-
-    private static void pollClicks(Minecraft mc) {
-        long now = System.currentTimeMillis();
-        boolean l = mc.screen == null && mc.options.keyAttack.isDown();
-        boolean r = mc.screen == null && mc.options.keyUse.isDown();
-        if (l && !wasLeft) LEFT.addLast(now);
-        if (r && !wasRight) RIGHT.addLast(now);
-        wasLeft = l;
-        wasRight = r;
-        trim(LEFT, now);
-        trim(RIGHT, now);
-    }
-
-    private static void trim(ArrayDeque<Long> q, long now) {
-        while (!q.isEmpty() && now - q.peekFirst() > 1000L) q.pollFirst();
-    }
-
-    // ------------------------------------------------------- перетаскивание
-
-    private static int[] keysBounds(Minecraft mc, Config c) {
+    private static int[] frame(GuiGraphics g, Minecraft mc, Config c, int i, int w, int h) {
+        W[i] = w;
+        H[i] = h;
+        int[] b = bounds(mc, c, i);
         int sw = mc.getWindow().getGuiScaledWidth();
         int sh = mc.getWindow().getGuiScaledHeight();
-        int w = 3 * K + 2 * GAP;
-        int h = 2 * K + GAP;
-        if (c.showMouse) h += GAP + MOUSE_H;
-        if (c.showSpace) h += GAP + SPACE_H;
-        if (c.showCps) h += GAP + CPS_H;
-        return new int[]{(int) (c.keysX * sw), (int) (c.keysY * sh), w, h};
+        // не даём панели уехать за экран, если она выросла
+        b[0] = Math.max(0, Math.min(b[0], sw - w));
+        b[1] = Math.max(0, Math.min(b[1], sh - h));
+        Draw.panel(g, b[0], b[1], w, h, Math.min(RADIUS, h / 2), Theme.panel());
+        return b;
     }
 
-    private static int[] targetBounds(Minecraft mc, Config c) {
-        int sw = mc.getWindow().getGuiScaledWidth();
-        int sh = mc.getWindow().getGuiScaledHeight();
-        return new int[]{(int) (c.targetX * sw) - TARGET_W / 2, (int) (c.targetY * sh), TARGET_W, TARGET_H};
+    private static void header(GuiGraphics g, Minecraft mc, int[] b, int w, String title, String right) {
+        g.drawString(mc.font, title, b[0] + PAD, b[1] + 8, Theme.text(), false);
+        if (right != null) {
+            int cw = mc.font.width(right) + 10;
+            int chipX = b[0] + w - PAD - cw;
+            Draw.pill(g, chipX, b[1] + 6, cw, 12, Theme.withAlpha(Theme.accent(), 0.18f));
+            g.drawString(mc.font, right, chipX + 5, b[1] + 8, Theme.accent(), false);
+        }
     }
 
-    private static boolean inside(double mx, double my, int[] b) {
-        return mx >= b[0] && mx <= b[0] + b[2] && my >= b[1] && my <= b[1] + b[3];
-    }
+    // ------------------------------------------------------- инфо-плашка
 
-    private static float clamp(float v, float lo, float hi) {
-        return Math.max(lo, Math.min(hi, v));
-    }
-
-    private static void updateDrag(Minecraft mc, Config c, boolean edit) {
-        if (!edit) {
-            if (dragging != 0) {
-                dragging = 0;
-                Config.save();
+    private static void drawInfo(GuiGraphics g, Minecraft mc, Config c) {
+        String name = mc.player != null ? mc.player.getName().getString() : "player";
+        String[] parts = {"PortihMod", name, Math.round(fps) + " fps", LocalTime.now().format(TIME)};
+        int gap = 12;
+        int tw = 0;
+        for (int k = 0; k < parts.length; k++) {
+            tw += mc.font.width(parts[k]);
+            if (k < parts.length - 1) tw += gap;
+        }
+        int w = tw + PAD * 2;
+        int h = 22;
+        int[] b = frame(g, mc, c, INFO, w, h);
+        int x = b[0] + PAD;
+        int y = b[1] + (h - 8) / 2;
+        for (int k = 0; k < parts.length; k++) {
+            g.drawString(mc.font, parts[k], x, y, k == 0 ? Theme.accent() : Theme.text(), false);
+            x += mc.font.width(parts[k]);
+            if (k < parts.length - 1) {
+                Draw.circle(g, x + gap / 2, b[1] + h / 2, 1, Theme.withAlpha(Theme.subText() & 0xFFFFFF, 0.6f));
+                x += gap;
             }
-            wasPressed = false;
+        }
+    }
+
+    // ------------------------------------------------------------ Potions
+
+    private record Row(String left, String right, int color) {}
+
+    private static String formatTime(int ticks) {
+        int s = Math.max(0, ticks / 20);
+        if (s >= 60) return (s / 60) + "m " + (s % 60) + "s";
+        return s + "s";
+    }
+
+    private static void drawPotions(GuiGraphics g, Minecraft mc, Config c, boolean edit) {
+        List<Row> rows = new ArrayList<>();
+        if (mc.player != null) {
+            for (MobEffectInstance e : mc.player.getActiveEffects()) {
+                String name = e.getEffect().value().getDisplayName().getString();
+                String lvl = e.getAmplifier() > 0 ? " " + (e.getAmplifier() + 1) : "";
+                String time = e.isInfiniteDuration() ? "inf" : formatTime(e.getDuration());
+                rows.add(new Row(name + lvl, time, 0xFF000000 | e.getEffect().value().getColor()));
+            }
+        }
+        if (rows.isEmpty() && edit) {
+            rows.add(new Row("Скорость 2", "15s", 0xFF7CAFC6));
+            rows.add(new Row("Регенерация", "32s", 0xFFCD5CAB));
+        }
+        if (rows.isEmpty()) {
+            W[POTIONS] = 0;
+            H[POTIONS] = 0;
             return;
         }
+        drawList(g, mc, c, POTIONS, "Potions", String.valueOf(rows.size()), rows, 100);
+    }
 
-        // Мышь читаем напрямую из окна: работает в любом экране.
-        long handle = GLFW.glfwGetCurrentContext();
-        if (handle == 0L) return;
-
-        boolean pressed = GLFW.glfwGetMouseButton(handle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
-        double[] cx = new double[1];
-        double[] cy = new double[1];
-        GLFW.glfwGetCursorPos(handle, cx, cy);
-        int[] ww = new int[1];
-        int[] wh = new int[1];
-        GLFW.glfwGetWindowSize(handle, ww, wh);
-
-        int sw = mc.getWindow().getGuiScaledWidth();
-        int sh = mc.getWindow().getGuiScaledHeight();
-        double mx = cx[0] * sw / Math.max(1, ww[0]);
-        double my = cy[0] * sh / Math.max(1, wh[0]);
-
-        if (pressed && !wasPressed) {
-            int[] tb = targetBounds(mc, c);
-            int[] kb = keysBounds(mc, c);
-            int panel = -1;
-            for (int i = Panels.COUNT - 1; i >= 0 && panel < 0; i--) {
-                if (Panels.enabled(c, i) && inside(mx, my, Panels.bounds(mc, c, i))) panel = i;
-            }
-            if (panel >= 0) {
-                int[] pb = Panels.bounds(mc, c, panel);
-                dragging = 10 + panel;
-                grabDX = (int) (mx - pb[0]);
-                grabDY = (int) (my - pb[1]);
-            } else if (c.targetHud && inside(mx, my, tb)) {
-                dragging = 2;
-                grabDX = (int) (mx - tb[0]);
-                grabDY = (int) (my - tb[1]);
-            } else if (c.keystrokes && inside(mx, my, kb)) {
-                dragging = 1;
-                grabDX = (int) (mx - kb[0]);
-                grabDY = (int) (my - kb[1]);
-            }
+    private static void drawList(GuiGraphics g, Minecraft mc, Config c, int id, String title, String count,
+                                 List<Row> rows, int minW) {
+        int w = Math.max(minW, mc.font.width(title) + mc.font.width(count) + PAD * 3 + 8);
+        for (Row r : rows) {
+            w = Math.max(w, PAD * 2 + 10 + mc.font.width(r.left()) + 14 + mc.font.width(r.right()));
         }
+        int h = HEADER_H + rows.size() * ROW_H + 6;
+        int[] b = frame(g, mc, c, id, w, h);
+        header(g, mc, b, w, title, count);
+        int y = b[1] + HEADER_H;
+        for (Row r : rows) {
+            Draw.circle(g, b[0] + PAD + 2, y + 4, 2, r.color());
+            g.drawString(mc.font, r.left(), b[0] + PAD + 10, y, Theme.text(), false);
+            g.drawString(mc.font, r.right(), b[0] + w - PAD - mc.font.width(r.right()), y, Theme.subText(), false);
+            y += ROW_H;
+        }
+    }
 
-        if (dragging != 0 && pressed) {
-            if (dragging >= 10) {
-                int pi = dragging - 10;
-                int[] b = Panels.bounds(mc, c, pi);
-                Panels.setPos(c, pi,
-                        clamp((float) ((mx - grabDX) / sw), 0f, Math.max(0f, (sw - b[2]) / (float) sw)),
-                        clamp((float) ((my - grabDY) / sh), 0f, Math.max(0f, (sh - b[3]) / (float) sh)));
-            } else if (dragging == 1) {
-                int[] b = keysBounds(mc, c);
-                c.keysX = clamp((float) ((mx - grabDX) / sw), 0f, Math.max(0f, (sw - b[2]) / (float) sw));
-                c.keysY = clamp((float) ((my - grabDY) / sh), 0f, Math.max(0f, (sh - b[3]) / (float) sh));
-            } else {
-                float half = TARGET_W / 2f / sw;
-                c.targetX = clamp((float) ((mx - grabDX + TARGET_W / 2.0) / sw), half, 1f - half);
-                c.targetY = clamp((float) ((my - grabDY) / sh), 0f, Math.max(0f, (sh - TARGET_H) / (float) sh));
+    // ----------------------------------------------------------- Keybinds
+
+    private static void drawKeybinds(GuiGraphics g, Minecraft mc, Config c) {
+        KeyMapping[] maps = {PortihClient.openMenu, PortihClient.toggleHud, PortihClient.toggleSpin};
+        List<Row> rows = new ArrayList<>();
+        for (KeyMapping km : maps) {
+            if (km == null || km.isUnbound()) continue;
+            rows.add(new Row(Component.translatable(km.getName()).getString(),
+                    km.getTranslatedKeyMessage().getString(), Theme.accent()));
+        }
+        if (rows.isEmpty()) rows.add(new Row("Нет назначенных клавиш", "", Theme.muted()));
+        drawList(g, mc, c, KEYBINDS, "Keybinds", String.valueOf(rows.size()), rows, 110);
+    }
+
+    // ---------------------------------------------------------- Cooldowns
+
+    private static void drawCooldowns(GuiGraphics g, Minecraft mc, Config c, boolean edit) {
+        List<ItemStack> stacks = new ArrayList<>();
+        List<Float> pcts = new ArrayList<>();
+        if (mc.player != null) {
+            for (ItemStack s : CD_ITEMS) {
+                float p = mc.player.getCooldowns().getCooldownPercent(s, 0f);
+                if (p > 0f) {
+                    stacks.add(s);
+                    pcts.add(p);
+                }
             }
         }
-
-        if (!pressed && dragging != 0) {
-            dragging = 0;
-            Config.save();
-        }
-        wasPressed = pressed;
-    }
-
-    private static void outline(GuiGraphics g, int[] b, boolean active) {
-        int col = active ? 0xFFFFFFFF : Theme.accent();
-        Draw.border(g, b[0] - 3, b[1] - 3, b[2] + 6, b[3] + 6, 12, Draw.fade(col, active ? 0.9f : 0.45f));
-    }
-
-    // ------------------------------------------------------------ анимации
-
-    /** Плавное значение 0..1 для нажатия/включения. */
-    private static float anim(String id, boolean on) {
-        float a = ANIM.getOrDefault(id, 0f);
-        float t = on ? 1f : 0f;
-        a += (t - a) * Math.min(1f, dt * 18f);
-        if (Math.abs(t - a) < 0.01f) a = t;
-        ANIM.put(id, a);
-        return a;
-    }
-
-    // ------------------------------------------------------------ кейстроки
-
-    private static void drawKeystrokes(GuiGraphics g, Minecraft mc, Config c) {
-        int[] b = keysBounds(mc, c);
-        int x0 = b[0];
-        int y0 = b[1];
-        int total = b[2];
-
-        key(g, mc, "w", x0 + K + GAP, y0, K, K, KEY_R, "W", mc.options.keyUp.isDown());
-        int y1 = y0 + K + GAP;
-        key(g, mc, "a", x0, y1, K, K, KEY_R, "A", mc.options.keyLeft.isDown());
-        key(g, mc, "s", x0 + K + GAP, y1, K, K, KEY_R, "S", mc.options.keyDown.isDown());
-        key(g, mc, "d", x0 + 2 * (K + GAP), y1, K, K, KEY_R, "D", mc.options.keyRight.isDown());
-
-        int y = y1 + K + GAP;
-        if (c.showMouse) {
-            int mw = (total - GAP) / 2;
-            key(g, mc, "lmb", x0, y, mw, MOUSE_H, MOUSE_H / 2, "ЛКМ", mc.options.keyAttack.isDown());
-            key(g, mc, "rmb", x0 + mw + GAP, y, total - mw - GAP, MOUSE_H, MOUSE_H / 2, "ПКМ", mc.options.keyUse.isDown());
-            y += MOUSE_H + GAP;
-        }
-        if (c.showSpace) {
-            float a = anim("space", mc.options.keyJump.isDown());
-            int in = Math.round(a * 1.5f);
-            Draw.pill(g, x0 + in, y + in / 2, total - in * 2, SPACE_H - in,
-                    Draw.lerpColor(Theme.keyBg(), Theme.withAlpha(Theme.accent(), 0.95f), a));
-            Draw.pill(g, x0 + total / 2 - 9, y + SPACE_H / 2 - 1, 18, 2,
-                    Draw.lerpColor(Theme.subText(), 0xFFFFFFFF, a));
-            y += SPACE_H + GAP;
-        }
-        if (c.showCps) {
-            Draw.pill(g, x0, y, total, CPS_H, Theme.keyBg());
-            String s = LEFT.size() + "  |  " + RIGHT.size() + "  CPS";
-            center(g, mc.font, s, x0 + total / 2, y + (CPS_H - 8) / 2, Theme.subText());
-        }
-    }
-
-    private static void key(GuiGraphics g, Minecraft mc, String id, int x, int y, int w, int h, int r,
-                            String label, boolean down) {
-        float a = anim(id, down);
-        int in = Math.round(a * 1.5f);   // клавиша мягко "вдавливается"
-        int bg = Draw.lerpColor(Theme.keyBg(), Theme.withAlpha(Theme.accent(), 0.95f), a);
-        Draw.roundRect(g, x + in, y + in, w - in * 2, h - in * 2, r - in, bg);
-        center(g, mc.font, label, x + w / 2, y + (h - 8) / 2, Draw.lerpColor(Theme.text(), 0xFFFFFFFF, a));
-    }
-
-    // ------------------------------------------------------------ таргет худ
-
-    private static int hpColor(float ratio) {
-        if (ratio > 0.5f) return Draw.lerpColor(0xFFFFC857, 0xFF4ADE80, (ratio - 0.5f) * 2f);
-        return Draw.lerpColor(0xFFFF6B6B, 0xFFFFC857, ratio * 2f);
-    }
-
-    private static void drawTarget(GuiGraphics g, Minecraft mc, Config c, boolean edit) {
-        long now = System.currentTimeMillis();
-        Entity e = (mc.hitResult instanceof EntityHitResult r) ? r.getEntity() : null;
-        if (e instanceof LivingEntity le && le != mc.player && le.isAlive()) {
-            if (le != shown) ActionFeed.clear();
-            shown = le;
-            shownUntil = now + 2000L;
-        }
-        boolean real = shown != null && now <= shownUntil && shown.isAlive();
-
-        // пока цель что-то делает, худ не гаснет
-        if (real && ActionFeed.lastEventMs != feedSeen) {
-            feedSeen = ActionFeed.lastEventMs;
-            shownUntil = Math.max(shownUntil, now + 2200L);
-        }
-        if (real) ActionFeed.update(shown);
-
-        targetVis = Draw.approach(targetVis, (real || edit) ? 1f : 0f, dt, 12f);
-        float vis = targetVis;
-        if (vis < 0.03f) return;
-
-        String name;
-        float hp;
-        float max;
-        if (real) {
-            name = shown.getName().getString();
-            hp = shown.getHealth();
-            max = Math.max(1f, shown.getMaxHealth());
-        } else {
-            name = "Игрок";
-            hp = 14f;
-            max = 20f;
+        if (stacks.isEmpty() && edit) {
+            stacks.add(CD_ITEMS[0]);
+            pcts.add(0.6f);
         }
 
-        float ratio = Math.max(0f, Math.min(1f, hp / max));
-        if (real && shown != animFor) {
-            animFor = shown;
-            barRatio = ratio;
-            ghostRatio = ratio;
+        int rowH = 20;
+        int w = 130;
+        int h = HEADER_H + stacks.size() * rowH + (stacks.isEmpty() ? 0 : 4);
+        int[] b = frame(g, mc, c, COOLDOWNS, w, h);
+        header(g, mc, b, w, "Cooldowns", stacks.isEmpty() ? null : String.valueOf(stacks.size()));
+
+        int y = b[1] + HEADER_H;
+        for (int k = 0; k < stacks.size(); k++) {
+            ItemStack s = stacks.get(k);
+            float p = pcts.get(k);
+            g.renderItem(s, b[0] + PAD - 2, y);
+            String name = s.getHoverName().getString();
+            if (name.length() > 12) name = name.substring(0, 11) + "..";
+            g.drawString(mc.font, name, b[0] + PAD + 16, y + 1, Theme.text(), false);
+            int bx = b[0] + PAD + 16;
+            int bw = w - PAD * 2 - 16;
+            Draw.pill(g, bx, y + 12, bw, 3, Theme.track());
+            int fw = (int) (bw * p);
+            if (fw > 0) Draw.pill(g, bx, y + 12, Math.max(3, fw), 3, Theme.accent());
+            y += rowH;
         }
-        barRatio += (ratio - barRatio) * Math.min(1f, dt * 10f);
-        if (ratio > ghostRatio) ghostRatio = ratio;
-        else ghostRatio += (ratio - ghostRatio) * Math.min(1f, dt * 1.8f);
-
-        int[] b = targetBounds(mc, c);
-        int slide = Math.round((1f - Draw.easeOut(vis)) * 8f);
-        int x = b[0];
-        int y = b[1] + slide;
-        int w = b[2];
-        int h = b[3];
-
-        Draw.panel(g, x, y, w, h, RADIUS, Draw.fade(Theme.panel(), vis), vis);
-
-        // голова в мягкой акцентной подложке
-        int hs = 30;
-        int hx = x + 10;
-        int hy = y + (h - hs) / 2;
-        Draw.roundRect(g, hx - 2, hy - 2, hs + 4, hs + 4, 8, Draw.fade(Theme.accent(), 0.85f * vis));
-        drawHead(g, mc, real ? shown : mc.player, hx, hy, hs);
-
-        int tx = hx + hs + 12;
-        if (name.length() > 13) name = name.substring(0, 13);
-        g.drawString(mc.font, name, tx, y + 10, Draw.fade(Theme.text(), vis), false);
-
-        String hpText = String.format(Locale.ROOT, "%.1f", hp);
-        int hpX = x + w - 12 - mc.font.width(hpText);
-        g.drawString(mc.font, hpText, hpX, y + 10, Draw.fade(Theme.subText(), vis), false);
-
-        if (c.winLose && mc.player != null) {
-            float diff = real ? mc.player.getHealth() - hp : 6f;
-            String wl = diff > 0.05f ? "W" : (diff < -0.05f ? "L" : "=");
-            int col = diff > 0.05f ? 0xFF4ADE80 : (diff < -0.05f ? 0xFFFF6B6B : Theme.subText());
-            int cw = mc.font.width(wl) + 10;
-            int chipX = hpX - 6 - cw;
-            Draw.pill(g, chipX, y + 8, cw, 12, Draw.fade(Theme.withAlpha(col & 0xFFFFFF, 0.2f), vis));
-            g.drawString(mc.font, wl, chipX + 5, y + 10, Draw.fade(col | 0xFF000000, vis), false);
-        }
-
-        // тонкая капсула здоровья без бликов и градиентов
-        int bx = tx;
-        int by = y + h - 17;
-        int bw = x + w - 12 - bx;
-        int bh = 6;
-        Draw.pill(g, bx, by, bw, bh, Draw.fade(Theme.track(), vis));
-        int gw = (int) (bw * ghostRatio);
-        if (gw > 1) Draw.pill(g, bx, by, Math.max(bh, gw), bh, Draw.fade(0x40FFFFFF, vis));
-        int fw = (int) (bw * barRatio);
-        if (fw > 1) Draw.pill(g, bx, by, Math.max(bh, fw), bh, Draw.fade(hpColor(barRatio) | 0xFF000000, vis));
-
-        // действия цели
-        ActionFeed.render(g, mc, x + w / 2, y + h + 7, vis, edit && !real);
-    }
-
-    private static void drawHead(GuiGraphics g, Minecraft mc, LivingEntity e, int x, int y, int s) {
-        if (e instanceof AbstractClientPlayer p) {
-            PlayerFaceRenderer.draw(g, p.getSkin(), x, y, s);
-        } else {
-            Draw.roundRect(g, x, y, s, s, 4, Theme.chip());
-            center(g, mc.font, "?", x + s / 2, y + (s - 8) / 2, Theme.subText());
-        }
-    }
-
-    // ----------------------------------------------------------------- util
-
-    private static void center(GuiGraphics g, Font font, String s, int cx, int y, int color) {
-        g.drawString(font, s, cx - font.width(s) / 2, y, color, false);
     }
 }
