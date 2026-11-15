@@ -141,8 +141,13 @@ public final class BaseFinder {
     }
 
     private static void toggle(Minecraft mc) {
+        setEnabled(mc, !BaseFinderConfig.get().enabled);
+    }
+
+    /** Включает/выключает поиск (клавиша B и переключатель в ClickGUI). */
+    public static void setEnabled(Minecraft mc, boolean on) {
         BaseFinderConfig cfg = BaseFinderConfig.get();
-        cfg.enabled = !cfg.enabled;
+        cfg.enabled = on;
         BaseFinderConfig.save();
         if (cfg.enabled) {
             rebuildLookup();
@@ -339,3 +344,4 @@ public final class BaseFinder {
         return g >= 0 && g < gs.size() ? gs.get(g).color & 0xFFFFFF : 0xFFFFFF;
     }
 }
+
