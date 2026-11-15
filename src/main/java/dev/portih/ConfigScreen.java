@@ -19,10 +19,20 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 
 public class ConfigScreen extends Screen {
-    private static final String[] TABS = {"HUD", "Меч", "Эффекты", "Звук", "Ивенты", "Бой", "Вид"};
+    private static final String[] TABS = {"HUD", "Меч", "Эффекты", "Звук", "Ивенты", "Бой", "ESP", "Вид"};
     private static final String[] AXES = {"Волчок (Y)", "Колесо (Z)", "Кувырок (X)"};
     private static final String[] SPIN_MODES = {"По удару", "Постоянно"};
     private static final String[] TRIGGERS = {"При попадании", "При клике"};
+    private static final String[] ESP_STYLES = {"Рамка", "Уголки"};
+    private static final String[] TRACERS = {"Выкл", "Только цель", "Все игроки"};
+    private static final String[] QUALITY = {"Макс. FPS", "Баланс", "Красиво"};
+    private static final String[] QUALITY_HINT = {
+            "Без теней и свечения: максимум FPS.",
+            "Лёгкие тени и свечение. Хороший баланс.",
+            "Тени, свечение и шлейф маркера."};
+
+    /** Версия мода читается один раз, а не в каждом кадре. */
+    private static String versionCache;
 
     private static final int TOGGLE = 0;
     private static final int SLIDER = 1;
@@ -47,6 +57,7 @@ public class ConfigScreen extends Screen {
         IntConsumer setI;
 
         Runnable action;
+        String desc = "";
 
         float anim;
         boolean animInit;
@@ -69,7 +80,8 @@ public class ConfigScreen extends Screen {
     private long lastNs;
     private float dt = 0.016f;
     private float tabSel = -1f;      // плавная позиция выделения вкладки
-    private final float[] tabHover = new float[8];
+    private final float[] tabHover = new float[TABS.length];
+    private final String closeHint;
     private String flash = "";
     private long flashUntil;
 
@@ -77,6 +89,9 @@ public class ConfigScreen extends Screen {
         super(Component.literal("PortihMod"));
         this.parent = parent;
         this.tab = Math.floorMod(Config.get().lastTab, TABS.length);
+        String openKey = PortihClient.openMenu != null
+                ? PortihClient.openMenu.getTranslatedKeyMessage().getString() : "Insert";
+        this.closeHint = "Esc / " + openKey + " - закрыть   ПКМ - назад по списку";
         CustomSounds.rescan();
     }
 
@@ -178,24 +193,48 @@ public class ConfigScreen extends Screen {
                 toggle("Действия цели (лента)", () -> c.actionFeed, v -> c.actionFeed = v);
             }
             case 5 -> {
-                toggle("ESP на невидимок", () -> c.invisEsp, v -> c.invisEsp = v);
-                toggle("Локатор невидимок", () -> c.invisLocator, v -> c.invisLocator = v);
-                toggle("ESP на игроков", () -> c.esp, v -> c.esp = v);
-                toggle("ESP: ник и здоровье", () -> c.espInfo, v -> c.espInfo = v);
+                toggle("ESP на невидимок", () -> c.invisEsp, v -> c.invisEsp = v)
+                        .desc = "Подсвечивает невидимых игроков сквозь стены.";
+                toggle("Локатор невидимок", () -> c.invisLocator, v -> c.invisLocator = v)
+                        .desc = "Точки вокруг прицела показывают, где невидимка.";
+                slider("Дальность невидимок", 16, 128, () -> c.invisRange, v -> c.invisRange = (float) v, "%.0f");
+                toggle("Автосвап", () -> c.autoSwap, v -> c.autoSwap = v)
+                        .desc = "Кнопка G меняет предмет в левой руке между двумя выбранными.";
+                cycle("Автосвап: первый", AutoSwap.NAMES, () -> c.swapA, v -> c.swapA = v);
+                cycle("Автосвап: второй", AutoSwap.NAMES, () -> c.swapB, v -> c.swapB = v);
+                toggle("Авто-тотем", () -> c.autoTotem, v -> c.autoTotem = v)
+                        .desc = "Сам ставит тотем в левую руку, когда она пуста.";
+            }
+            case 6 -> {
+                toggle("ESP на игроков", () -> c.esp, v -> c.esp = v)
+                        .desc = "Рамки игроков сквозь стены.";
+                cycle("Вид рамки", ESP_STYLES, () -> c.espStyle, v -> c.espStyle = v);
+                toggle("Заливка рамки", () -> c.espFill, v -> c.espFill = v);
+                toggle("Ник и здоровье", () -> c.espInfo, v -> c.espInfo = v);
+                toggle("Дистанция", () -> c.espDistance, v -> c.espDistance = v);
+                cycle("Трейсеры", TRACERS, () -> c.espTracers, v -> c.espTracers = v);
                 slider("ESP дальность", 16, 192, () -> c.espRange, v -> c.espRange = (float) v, "%.0f");
-                toggle("Таргет ESP", () -> c.targetEsp, v -> c.targetEsp = v);
+                toggle("Таргет ESP (инфо)", () -> c.targetEsp, v -> c.targetEsp = v)
+                        .desc = "Панель рядом с целью: броня, яблоки, тотемы.";
                 toggle("Таргет: броня", () -> c.targetArmor, v -> c.targetArmor = v);
                 toggle("Таргет: яблоки", () -> c.targetApples, v -> c.targetApples = v);
                 toggle("Таргет: тотемы", () -> c.targetTotems, v -> c.targetTotems = v);
-                slider("Дальность (блоки)", 16, 128, () -> c.invisRange, v -> c.invisRange = (float) v, "%.0f");
-                toggle("Автосвап", () -> c.autoSwap, v -> c.autoSwap = v);
-                cycle("Автосвап: первый", AutoSwap.NAMES, () -> c.swapA, v -> c.swapA = v);
-                cycle("Автосвап: второй", AutoSwap.NAMES, () -> c.swapB, v -> c.swapB = v);
-                toggle("Авто-тотем", () -> c.autoTotem, v -> c.autoTotem = v);
+                toggle("Крутящийся маркер", () -> c.targetMark, v -> c.targetMark = v)
+                        .desc = "Квадрат, который вращается на цели.";
+                cycle("Стиль маркера", TargetMarker.STYLE_NAMES, () -> c.markStyle, v -> c.markStyle = v);
+                slider("Размер маркера", 0.4, 2.5, () -> c.markSize, v -> c.markSize = (float) v, "%.2f");
+                slider("Скорость вращения", 0.1, 3.0, () -> c.markSpeed, v -> c.markSpeed = (float) v, "%.1f");
+                toggle("Цвет по здоровью", () -> c.markHealthColor, v -> c.markHealthColor = v)
+                        .desc = "Маркер краснеет, когда у цели мало здоровья.";
+                toggle("Цифры урона", () -> c.damagePops, v -> c.damagePops = v)
+                        .desc = "Всплывающие -N над целью.";
+                toggle("Крестик при попадании", () -> c.hitMarker, v -> c.hitMarker = v);
             }
             default -> {
                 toggle("Светлая тема", () -> c.lightTheme, v -> c.lightTheme = v);
                 cycle("Акцент", Theme.ACCENT_NAMES, () -> c.accent, v -> c.accent = v);
+                cycle("Качество эффектов", QUALITY, () -> c.quality, v -> c.quality = v)
+                        .desc = "Влияет на тени, свечение и шлейфы. Для слабых ПК - Макс. FPS.";
                 slider("Прозрачность", 0.2, 1.0, () -> c.panelOpacity, v -> c.panelOpacity = (float) v, "%.2f");
                 cycle("Колесико мыши", PortihClient.MIDDLE_NAMES, () -> c.middleAction, v -> c.middleAction = v);
                 action("Сбросить всё", () -> {
@@ -207,16 +246,17 @@ public class ConfigScreen extends Screen {
         }
     }
 
-    private void toggle(String label, BooleanSupplier get, Consumer<Boolean> set) {
+    private Row toggle(String label, BooleanSupplier get, Consumer<Boolean> set) {
         Row r = new Row();
         r.type = TOGGLE;
         r.label = label;
         r.getB = get;
         r.setB = set;
         rows.add(r);
+        return r;
     }
 
-    private void slider(String label, double min, double max, DoubleSupplier get, DoubleConsumer set, String fmt) {
+    private Row slider(String label, double min, double max, DoubleSupplier get, DoubleConsumer set, String fmt) {
         Row r = new Row();
         r.type = SLIDER;
         r.label = label;
@@ -226,9 +266,10 @@ public class ConfigScreen extends Screen {
         r.setD = set;
         r.fmt = fmt;
         rows.add(r);
+        return r;
     }
 
-    private void cycle(String label, String[] names, IntSupplier get, IntConsumer set) {
+    private Row cycle(String label, String[] names, IntSupplier get, IntConsumer set) {
         Row r = new Row();
         r.type = CYCLE;
         r.label = label;
@@ -236,21 +277,23 @@ public class ConfigScreen extends Screen {
         r.getI = get;
         r.setI = set;
         rows.add(r);
+        return r;
     }
 
-    private void action(String label, Runnable run) {
+    private Row action(String label, Runnable run) {
         Row r = new Row();
         r.type = ACTION;
         r.label = label;
         r.action = run;
         rows.add(r);
+        return r;
     }
 
     // ------------------------------------------------------------ раскладка
 
     private void layout() {
         pw = Math.min(this.width - 24, 560);
-        ph = Math.min(this.height - 24, 290);
+        ph = Math.min(this.height - 24, 310);
         float e = Draw.easeOut((System.currentTimeMillis() - openedAt) / 200f);
         oy = Math.round((1f - e) * 12f);
         px = (this.width - pw) / 2;
@@ -397,8 +440,19 @@ public class ConfigScreen extends Screen {
         // Свой фон рисуется в render(); отключаем ванильное размытие.
     }
 
-    private String note() {
+    private String note(int mx, int my) {
         if (!flash.isEmpty() && System.currentTimeMillis() < flashUntil) return flash;
+        for (Row r : rows) {
+            if (!r.desc.isEmpty() && mx >= r.x && mx < r.x + r.w && my >= r.y && my < r.y + r.h) return r.desc;
+        }
+        if (tab == 7) {
+            for (Row r : rows) {
+                if (r.label.equals("Качество эффектов") && mx >= r.x && mx < r.x + r.w
+                        && my >= r.y && my < r.y + r.h) {
+                    return QUALITY_HINT[Math.floorMod(Config.get().quality, QUALITY_HINT.length)];
+                }
+            }
+        }
         return switch (tab) {
             case 0 -> "Панели можно двигать и в чате (T).";
             case 1 -> SwordSpin.handRenders > 0
@@ -407,7 +461,8 @@ public class ConfigScreen extends Screen {
             case 3 -> "Свои звуки: .mp3 / .wav в config/portihmod/sounds или перетащи файл в окно.";
             case 4 -> "Слова-триггеры: поле eventKeywords в config/portihmod.json";
             case 5 -> "Автосвап: кнопка G (меняется в Управлении - PortihMod)";
-            case 6 -> "Бинды: Настройки - Управление - Бинды клавиш - PortihMod";
+            case 6 -> "Наведи на настройку - появится подсказка. Превью маркера слева внизу.";
+            case 7 -> "Бинды: Настройки - Управление - Бинды клавиш - PortihMod";
             default -> "";
         };
     }
@@ -432,14 +487,32 @@ public class ConfigScreen extends Screen {
         // боковая панель
         Draw.roundRect(g, sbX, sbY, SB_W, sbH, 12, Theme.sidebar());
         g.drawString(this.font, "PortihMod", sbX + 12, sbY + 11, Theme.accent(), false);
-        String ver = "v" + FabricLoader.getInstance().getModContainer(PortihClient.MOD_ID)
-                .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("");
-        g.drawString(this.font, ver, sbX + 12, sbY + 23, Theme.muted(), false);
+        if (versionCache == null) {
+            versionCache = "v" + FabricLoader.getInstance().getModContainer(PortihClient.MOD_ID)
+                    .map(m -> m.getMetadata().getVersion().getFriendlyString()).orElse("");
+        }
+        g.drawString(this.font, versionCache, sbX + 12, sbY + 23, Theme.muted(), false);
 
         // выделение вкладки плавно скользит
         float want = tabTop(tab);
         tabSel = tabSel < 0f ? want : Draw.approach(tabSel, want, dt, 16f);
         Draw.pill(g, sbX + 6, Math.round(tabSel), SB_W - 12, 22, Theme.withAlpha(Theme.accent(), 0.20f));
+
+        // акцентная полоска у активной вкладки
+        Draw.pill(g, sbX + 2, Math.round(tabSel) + 5, 3, 12, Theme.accent());
+
+        // превью маркера цели (вкладка ESP); рисуется, только если не налезает на вкладки
+        if (tab == 6) {
+            int cardH = 50;
+            int cardY = sbY + sbH - cardH - 6;
+            if (cardY >= tabTop(TABS.length)) {
+                int cardX = sbX + 6;
+                int cardW = SB_W - 12;
+                Draw.roundRect(g, cardX, cardY, cardW, cardH, 10, Theme.card());
+                g.drawString(this.font, "Превью", cardX + 8, cardY + 5, Theme.subText(), false);
+                TargetMarker.drawPreview(g, Config.get(), cardX + cardW / 2, cardY + cardH / 2 + 5, 17);
+            }
+        }
 
         for (int i = 0; i < TABS.length; i++) {
             boolean on = i == tab;
@@ -460,11 +533,9 @@ public class ConfigScreen extends Screen {
         for (Row r : rows) drawRow(g, r, mouseX, mouseY);
 
         // низ
-        String n = note();
+        String n = note(mouseX, mouseY);
         if (!n.isEmpty()) g.drawString(this.font, n, cx + 2, py + ph - 26, Theme.subText(), false);
-        String openKey = PortihClient.openMenu != null
-                ? PortihClient.openMenu.getTranslatedKeyMessage().getString() : "Insert";
-        g.drawString(this.font, "Esc / " + openKey + " - закрыть   ПКМ - назад по списку",
+        g.drawString(this.font, closeHint,
                 cx + 2, py + ph - 15, Theme.muted(), false);
     }
 
@@ -511,11 +582,18 @@ public class ConfigScreen extends Screen {
                 Draw.circle(g, tx + fill, by + 2, kn / 2, 0xFFFFFFFF);
             }
             case CYCLE -> {
-                String s = r.names[Math.floorMod(r.getI.getAsInt(), r.names.length)];
-                int chipW = this.font.width(s) + 14;
+                int idx = Math.floorMod(r.getI.getAsInt(), r.names.length);
+                String s = r.names[idx];
+                boolean swatch = r.names == Theme.ACCENT_NAMES;
+                int chipW = this.font.width(s) + 14 + (swatch ? 10 : 0);
                 int chipX = r.x + r.w - 8 - chipW;
                 Draw.pill(g, chipX, r.y + (r.h - 14) / 2, chipW, 14, Theme.chip());
-                g.drawString(this.font, s, chipX + 7, r.y + (r.h - 8) / 2, Theme.accent(), false);
+                int textX = chipX + 7;
+                if (swatch) {
+                    Draw.circle(g, chipX + 10, r.y + r.h / 2, 3, Theme.ACCENTS[idx]);
+                    textX += 10;
+                }
+                g.drawString(this.font, s, textX, r.y + (r.h - 8) / 2, Theme.accent(), false);
             }
             case ACTION -> {
                 int cxA = r.x + r.w - 18;
