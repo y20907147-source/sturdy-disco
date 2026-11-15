@@ -4,5 +4,7 @@
   "key.portihmod.toggle_hud": "Toggle HUD",
   "key.portihmod.autoswap": "Auto swap",
   "key.portihmod.toggle_spin": "Toggle sword spin",
-  "key.portihmod.middle": "Middle mouse action"
+  "key.portihmod.middle": "Middle mouse action",
+  "key.portihmod.bf_toggle": "Base finder: toggle",
+  "key.portihmod.bf_report": "Base finder: print report"
 }
