@@ -72,6 +72,7 @@ public final class Hud {
         Locator.render(g, mc, c);
         Esp.render(g, mc, c, delta);
         dev.portih.basefinder.BaseFinderRender.render(g, mc, delta);
+        dev.portih.training.TrainingDummy.render(g, mc, delta);
         if (!c.hudEnabled) return;
 
         pollClicks(mc);
