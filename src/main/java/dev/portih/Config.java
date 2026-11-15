@@ -18,46 +18,12 @@ public class Config {
     // ---- меню ----
     public int lastTab = 0;
 
-    package dev.portih.gui;
-
-import dev.portih.Draw;
-
-/** Кнопка-действие (отчёт, проверка звука, открыть редактор...). */
-public final class ButtonSetting extends GuiComponent {
-    private final Runnable action;
-    private float flash;
-
-    public ButtonSetting(String label, Runnable action) {
-        super(label);
-        this.action = action;
-    }
-
-    @Override
-    public float height() {
-        return 24;
-    }
-
-    @Override
-    public void draw(int mx, int my, float dt) {
-        tickHover(mx, my, dt);
-        flash = AnimationUtil.approach(flash, 0f, dt, 8f);
-        int acc = RenderUtil.accent();
-        int bg = Draw.lerpColor(RenderUtil.BG_FIELD, acc, Math.max(hover * 0.12f, flash * 0.45f));
-        RenderUtil.rect(x, y, w, 24, 8, bg);
-        RenderUtil.outline(x, y, w, 24, 8, Draw.lerpColor(RenderUtil.OUTLINE, acc, Math.min(1f, hover * 0.6f + flash)));
-        float tx = x + (w - RenderUtil.width(label)) / 2f;
-        RenderUtil.text(label, tx, y + 8, Draw.lerpColor(RenderUtil.TEXT, acc, hover * 0.3f));
-    }
-
-    @Override
-    public boolean mouseDown(int mx, int my, int button) {
-        if (button == 0) {
-            flash = 1f;
-            action.run();
-        }
-        return false;
-    }
-}
+    // ---- ClickGUI ----
+    public int guiX = -1;                 // позиция окна (-1 = по центру)
+    public int guiY = -1;
+    public int guiCategory = 0;           // последняя открытая категория
+    public int guiAccent = 0x6C8CFF;      // акцентный цвет 0xRRGGBB
+    public float guiOpacity = 0.95f;      // прозрачность фонов окна (0.5..1)
 
     // ---- вид ----
     public boolean lightTheme = false;
@@ -199,6 +165,8 @@ public final class ButtonSetting extends GuiComponent {
         if (instance.hitCustom == null) instance.hitCustom = "";
         if (instance.eventKeywords == null) instance.eventKeywords = "";
         instance.quality = Math.max(0, Math.min(2, instance.quality));
+        instance.guiOpacity = Math.max(0.5f, Math.min(1f, instance.guiOpacity));
+        instance.guiCategory = Math.max(0, instance.guiCategory);
         instance.markStyle = Math.max(0, Math.min(3, instance.markStyle));
         instance.espStyle = Math.max(0, Math.min(1, instance.espStyle));
         instance.espTracers = Math.max(0, Math.min(2, instance.espTracers));
