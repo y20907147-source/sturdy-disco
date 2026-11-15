@@ -33,6 +33,15 @@ public class Config {
     /** Слова через запятую: если сообщение сервера содержит одно из них, показываем оповещение. */
     public String eventKeywords = "ивент,эвент,event,метеорит,аирдроп,airdrop";
 
+    // ---- бой ----
+    public boolean invisEsp = true;       // подсветка невидимых игроков сквозь стены
+    public boolean invisLocator = true;   // стрелки-локатор вокруг прицела
+    public float invisRange = 64f;
+    public boolean autoSwap = true;       // смена предмета в левой руке по кнопке
+    public int swapA = 0;                 // индекс в AutoSwap.NAMES
+    public int swapB = 1;
+    public boolean autoTotem = false;     // сам ставит тотем в левую руку, когда она пуста
+
     // ---- таргет худ ----
     public boolean targetHud = true;
     public float targetX = 0.50f;
